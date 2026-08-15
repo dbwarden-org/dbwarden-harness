@@ -1,0 +1,7 @@
+{
+  "name": "rbac_complex",
+  "models": "models.py",
+  "backend": "postgresql",
+  "expected_tables": ["accounts", "audit_events"],
+  "expected_indexes": ["ix_audit_events_account_id"]
+}
