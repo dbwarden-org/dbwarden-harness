@@ -12,8 +12,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [postgres, mysql, mariadb, clickhouse]
-    continue-on-error: ${{ matrix.backend == 'mariadb' }}
+        include:
+          - backend: postgres
+            experimental: false
+          - backend: mysql
+            experimental: true
+          - backend: mariadb
+            experimental: true
+          - backend: clickhouse
+            experimental: false
+    continue-on-error: ${{ matrix.experimental }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5

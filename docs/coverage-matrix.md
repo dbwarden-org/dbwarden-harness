@@ -7,7 +7,7 @@ coverage. A provider being ready is not evidence that migrations converge.
 |---|---:|---:|---:|---:|---:|
 | Provider lifecycle | yes | yes | yes | yes | yes |
 | Initial migration round trip | yes | yes | yes | release-blocked on `0.16.5` | yes |
-| Version round trip | local | scheduled | scheduled | scheduled | scheduled |
+| Version round trip | local | scheduled | experimental on `0.16.5` | experimental on `0.16.5` | scheduled |
 | Structural drift capture | yes | yes | yes | yes | yes |
 | Backend table metadata | limited | dialect-dependent | dialect-dependent | dialect-dependent | engine/order/partition keys |
 | Staged upgrade/reapply | yes | planned | planned | planned | planned |

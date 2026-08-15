@@ -12,6 +12,9 @@ as passing or silently skipped when the affected test is selected.
   referenced `orders` table, producing a foreign-key creation error. The core
   checkout now topologically orders newly created tables; this is fixed for the
   next release.
+- PyPI `0.16.5` MySQL reverse-engineering can report an incomplete `varchar`
+  type without a length during final diff, so the full-version MySQL round-trip
+  remains an experimental compatibility cell until the release is corrected.
 - PyPI `0.16.5` does not recognize the `clickhouse://` URL scheme when
   converting to the `clickhousedb` SQLAlchemy dialect, corrupting credentials.
   The core checkout now parses that scheme correctly; this is fixed for the
