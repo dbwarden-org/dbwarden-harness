@@ -1,0 +1,39 @@
+[project]
+name = "dbwarden-test-harness"
+version = "0.1.0"
+description = "Black-box integration and distribution harness for DBWarden"
+readme = "README.md"
+requires-python = ">=3.12.7"
+dependencies = [
+    "dbwarden[postgres,mysql,clickhouse]>=0.16.5",
+    "testcontainers>=4.10",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-benchmark>=5.1",
+    "pytest-timeout>=2.3",
+    "pytest-xdist>=3.6",
+    "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "suites"]
+addopts = "-ra"
+filterwarnings = ["error"]
+markers = [
+    "integration: requires Docker and real database providers",
+    "slow: long-running durability or matrix coverage",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["harness", "tools", "infrastructure", "schemas"]
