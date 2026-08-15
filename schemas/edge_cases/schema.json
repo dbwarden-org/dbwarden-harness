@@ -1,0 +1,7 @@
+{
+  "name": "edge_cases",
+  "models": "models.py",
+  "backend": "postgresql",
+  "expected_tables": ["reserved_keywords"],
+  "expected_indexes": []
+}
