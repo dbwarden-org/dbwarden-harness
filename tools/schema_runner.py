@@ -63,10 +63,24 @@ class SchemaRunner:
             )
         return snapshot
 
-    def reverse_engineer(self, output_dir: str = "generated", *, tables: str | None = None) -> Path:
+    def reverse_engineer(
+        self,
+        output_dir: str = "generated",
+        *,
+        tables: str | None = None,
+        exclude_tables: str | None = None,
+        clickhouse_engines: bool = False,
+        relationships: bool = False,
+    ) -> Path:
         flags = ["--output", output_dir, "--single-file"]
         if tables:
             flags.extend(("--tables", tables))
+        if exclude_tables:
+            flags.extend(("--exclude-tables", exclude_tables))
+        if clickhouse_engines:
+            flags.append("--clickhouse-engines")
+        if relationships:
+            flags.append("--relationships")
         self.player.generate_models(*flags)
         generated = self.player.work_dir / output_dir / "models.py"
         if not generated.exists():
