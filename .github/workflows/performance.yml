@@ -1,0 +1,28 @@
+name: Harness Performance
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "31 4 1 * *"
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: latest
+      - name: Install locked environment
+        run: uv sync --locked
+      - name: Run scale and snapshot benchmarks
+        env:
+          DBWARDEN_HARNESS_RUN_SCALE: "1"
+          DBWARDEN_HARNESS_RUN_500_MIGRATION: "1"
+        run: uv run pytest suites/performance -s --benchmark-json=benchmark.json
+      - name: Upload benchmark report
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-performance
+          path: benchmark.json
