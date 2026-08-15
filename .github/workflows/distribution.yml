@@ -1,0 +1,22 @@
+name: Distribution Certification
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  distribution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: latest
+      - name: Install locked harness
+        run: uv sync --locked
+      - name: Verify installed distribution
+        run: uv run pytest -q tests/test_distribution.py tests/test_distribution_smoke.py
+      - name: Verify CLI contract
+        run: uv run pytest -q suites/distribution
