@@ -1,0 +1,1 @@
+"""Migration-system adoption suites."""
