@@ -1,0 +1,8 @@
+{
+  "500": {
+    "prepare_seconds": 1.8,
+    "migrate_seconds": 291.8,
+    "diff_seconds": 6.7,
+    "total_seconds": 300.3
+  }
+}
