@@ -29,5 +29,14 @@ def test_latest_backend_round_trip(backend: str, version: str, schema_name: str,
         runner.initialize()
         runner.make_and_apply(f"{schema_name} {backend} round trip")
         assert player.status().returncode == 0
+        snapshot = runner.capture_schema()
+        if backend == "clickhouse":
+            options = dict(snapshot.table_options["events"])
+            assert options["engine"] == "MergeTree"
+            assert "occurred_at" in options["sorting_key"]
+        else:
+            assert ("order_id", "orders", "id") in snapshot.foreign_keys["order_items"]
+            assert ("user_id", "users", "id") in snapshot.foreign_keys["orders"]
+            assert snapshot.unique_constraints["users"]
     finally:
         provider.stop()

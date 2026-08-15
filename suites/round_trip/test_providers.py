@@ -9,6 +9,8 @@ from infrastructure.providers import (
     MySQLProvider,
     PostgresProvider,
 )
+from tools.drift_checker import DriftChecker
+from tools.migration_player import MigrationPlayer
 
 
 def _selected_matrix_cases() -> tuple[tuple[str, str], ...]:
@@ -46,3 +48,33 @@ def test_declared_provider_matrix_starts_and_resets(backend: str, version: str):
         assert url
         assert provider.version() == version
         provider.reset()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("backend,version", (("postgres", "17"), ("mysql", "8.4"), ("mariadb", "11.4"), ("clickhouse", "26.6")))
+def test_provider_reset_removes_database_objects(backend: str, version: str, tmp_path):
+    from infrastructure.providers import provider_for
+
+    provider = provider_for(backend, version)
+    try:
+        player = MigrationPlayer(provider.start(), tmp_path)
+        player.init_and_configure(database_type="postgresql" if backend == "postgres" else backend)
+        migration_dir = tmp_path / "migrations" / "primary"
+        migration_dir.mkdir(parents=True, exist_ok=True)
+        statement = (
+            "CREATE TABLE reset_probe (id Int64) ENGINE = MergeTree ORDER BY id;"
+            if backend == "clickhouse"
+            else "CREATE TABLE reset_probe (id INTEGER PRIMARY KEY);"
+        )
+        (migration_dir / "primary__0001_reset.sql").write_text(
+            f"-- upgrade\n{statement}\n-- rollback\nDROP TABLE reset_probe;\n",
+            encoding="utf-8",
+        )
+        player.migrate()
+        assert "reset_probe" in DriftChecker().capture(player.database_url).tables
+
+        provider.reset()
+
+        assert "reset_probe" not in DriftChecker().capture(player.database_url).tables
+    finally:
+        provider.stop()
