@@ -1,10 +1,10 @@
 # DBWarden Test Harness Documentation
 > Full documentation for black-box DBWarden release validation
-> Source: https://dbwarden-org.github.io/dbwarden-harness
+> Source: https://harness.dbwarden.org
 > Pages: 39
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/README/
+PAGE: https://harness.dbwarden.org/README/
 ========================================================================
 
 # Documentation Source
@@ -22,7 +22,7 @@ Start with `index.md`, then use the navigation groups for setup, correctness,
 test suites, providers, operations, and reference material.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/architecture/
+PAGE: https://harness.dbwarden.org/architecture/
 ========================================================================
 
 # Architecture
@@ -88,7 +88,7 @@ imports. `harness/provenance.py` checks that installed DBWarden is not resolved
 from the harness or product source checkout.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/convergence/
+PAGE: https://harness.dbwarden.org/correctness/convergence/
 ========================================================================
 
 # Convergence Model
@@ -136,7 +136,7 @@ metadata is compared explicitly. Foreign keys, unique constraints, defaults,
 and indexes remain visible in relational snapshots.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/durability/
+PAGE: https://harness.dbwarden.org/correctness/durability/
 ========================================================================
 
 # Durability and Recovery
@@ -170,7 +170,7 @@ concurrent lock contention, and partial failure injection remain separate
 areas for future provider-specific suites.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/
+PAGE: https://harness.dbwarden.org/correctness/
 ========================================================================
 
 # Correctness
@@ -202,7 +202,7 @@ A command exit code is therefore only one assertion in a passing test.
 - [Offline Integrity](offline-integrity.md)
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/offline-integrity/
+PAGE: https://harness.dbwarden.org/correctness/offline-integrity/
 ========================================================================
 
 # Offline Integrity
@@ -230,7 +230,7 @@ between jobs. A stale state file can make a migration appear deterministic
 while using a different input. Checksums make the dependency visible.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/round-trips/
+PAGE: https://harness.dbwarden.org/correctness/round-trips/
 ========================================================================
 
 # Round Trips
@@ -275,7 +275,7 @@ reapplies it. ClickHouse uses an explicit MergeTree table and checks that engine
 metadata remains present while columns change.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/safety/
+PAGE: https://harness.dbwarden.org/correctness/safety/
 ========================================================================
 
 # Safety
@@ -303,7 +303,7 @@ blocked invocation, the required confirmation text, the forced invocation, and
 the resulting database state where execution is safe.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/semantic-drift/
+PAGE: https://harness.dbwarden.org/correctness/semantic-drift/
 ========================================================================
 
 # Semantic Drift
@@ -347,7 +347,7 @@ When a backend needs a native path, the provider-specific capture code is
 explicit and tested separately.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/coverage-matrix/
+PAGE: https://harness.dbwarden.org/coverage-matrix/
 ========================================================================
 
 # Harness Coverage Matrix
@@ -382,7 +382,7 @@ that cell passing.
   rollback/recovery, and retained failure artifacts.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/getting-started/contributing/
+PAGE: https://harness.dbwarden.org/getting-started/contributing/
 ========================================================================
 
 # Contributing
@@ -435,7 +435,7 @@ The navigation is defined in `zensical.toml`. Every path in the navigation must
 exist under `docs`.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/getting-started/running-tests/
+PAGE: https://harness.dbwarden.org/getting-started/running-tests/
 ========================================================================
 
 # Running Tests
@@ -518,7 +518,7 @@ files, generated migrations, model state, provenance, and provider logs when
 the provider is available to the pytest hook.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/getting-started/setup/
+PAGE: https://harness.dbwarden.org/getting-started/setup/
 ========================================================================
 
 # Setup
@@ -568,7 +568,7 @@ The harness providers use Testcontainers directly. The compose files under
 providers own their container lifecycle.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/getting-started/writing-fixtures/
+PAGE: https://harness.dbwarden.org/getting-started/writing-fixtures/
 ========================================================================
 
 # Writing Fixtures
@@ -616,7 +616,7 @@ diagnostics, and teardown. Add lifecycle tests before adding migration tests.
 That prevents an unavailable container from appearing as a migration defect.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/
+PAGE: https://harness.dbwarden.org/
 ========================================================================
 
 <p align="center">
@@ -644,7 +644,7 @@ PAGE: https://dbwarden-org.github.io/dbwarden-harness/
 </p>
 
 <p align="center">
-  <strong><a href="https://dbwarden-org.github.io/dbwarden-harness/">Documentation</a></strong>
+  <strong><a href="https://harness.dbwarden.org/">Documentation</a></strong>
   &nbsp;|&nbsp;
   <strong><a href="https://github.com/dbwarden-org/dbwarden-harness">Source Code</a></strong>
   &nbsp;|&nbsp;
@@ -688,7 +688,7 @@ The product being tested is documented at
 For machine-readable documentation, use
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/known-compatibility/
+PAGE: https://harness.dbwarden.org/known-compatibility/
 ========================================================================
 
 # Known Compatibility Findings
@@ -726,7 +726,7 @@ The provider lifecycle matrix is independent of these DBWarden release
 findings and passes all 14 declared backend/version cases.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/operations/artifacts/
+PAGE: https://harness.dbwarden.org/operations/artifacts/
 ========================================================================
 
 # Failure Artifacts
@@ -767,7 +767,7 @@ Download the artifact before rerunning if the failure may depend on container
 logs or generated files.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/operations/ci/
+PAGE: https://harness.dbwarden.org/operations/ci/
 ========================================================================
 
 # CI
@@ -809,7 +809,7 @@ Use the exact command shown in the failed workflow step, then set
 `DBWARDEN_HARNESS_ARTIFACT_DIR=artifacts` to retain local evidence.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/operations/compatibility/
+PAGE: https://harness.dbwarden.org/operations/compatibility/
 ========================================================================
 
 # Compatibility Findings
@@ -846,7 +846,7 @@ DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_tri
 ```
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/operations/provenance/
+PAGE: https://harness.dbwarden.org/operations/provenance/
 ========================================================================
 
 # Release Provenance
@@ -875,7 +875,7 @@ wheel, a local editable install, or an accidental dependency upgrade. With it,
 the same command can be rerun against the same release environment.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/operations/troubleshooting/
+PAGE: https://harness.dbwarden.org/operations/troubleshooting/
 ========================================================================
 
 # Troubleshooting
@@ -922,7 +922,7 @@ Docker architecture from the artifact bundle. The harness deliberately records
 these values because release and environment differences are common causes.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/providers/clickhouse/
+PAGE: https://harness.dbwarden.org/providers/clickhouse/
 ========================================================================
 
 # ClickHouse
@@ -951,7 +951,7 @@ DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_tri
 ```
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/providers/
+PAGE: https://harness.dbwarden.org/providers/
 ========================================================================
 
 # Database Providers
@@ -974,7 +974,7 @@ See [Provider Lifecycle](lifecycle.md) for startup guarantees and
 [Version Matrix](version-matrix.md) for selection behavior.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/providers/lifecycle/
+PAGE: https://harness.dbwarden.org/providers/lifecycle/
 ========================================================================
 
 # Provider Lifecycle
@@ -1009,7 +1009,7 @@ DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_tri
 ```
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/providers/relational/
+PAGE: https://harness.dbwarden.org/providers/relational/
 ========================================================================
 
 # PostgreSQL, MySQL, and MariaDB
@@ -1044,7 +1044,7 @@ behavior differs from MySQL. The current PyPI release has an explicit table
 ordering XFAIL in generate-models coverage and an experimental matrix cell.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/providers/sqlite/
+PAGE: https://harness.dbwarden.org/providers/sqlite/
 ========================================================================
 
 # SQLite
@@ -1066,7 +1066,7 @@ uv run pytest -q suites/offline/test_sqlite_offline.py
 ```
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/providers/version-matrix/
+PAGE: https://harness.dbwarden.org/providers/version-matrix/
 ========================================================================
 
 # Version Matrix
@@ -1093,7 +1093,7 @@ known PyPI 0.16.5 compatibility findings. Their tests run and upload artifacts;
 they are not silently omitted.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/reference/environment/
+PAGE: https://harness.dbwarden.org/reference/environment/
 ========================================================================
 
 # Environment Variables
@@ -1113,7 +1113,7 @@ Variables beginning with `DBWARDEN_HARNESS_` are included in command artifact
 metadata so a run can be reproduced.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/reference/fixture-contract/
+PAGE: https://harness.dbwarden.org/reference/fixture-contract/
 ========================================================================
 
 # Fixture Contract
@@ -1144,7 +1144,7 @@ fixtures should also assert relevant semantic options such as ClickHouse engine
 and sorting key values.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/reference/glossary/
+PAGE: https://harness.dbwarden.org/reference/glossary/
 ========================================================================
 
 # Glossary
@@ -1180,7 +1180,7 @@ PAGE: https://dbwarden-org.github.io/dbwarden-harness/reference/glossary/
   known package compatibility issue exists.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/reference/layout/
+PAGE: https://harness.dbwarden.org/reference/layout/
 ========================================================================
 
 # Repository Layout
@@ -1204,7 +1204,7 @@ clean harness install resolves DBWarden from the configured distribution
 environment.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/adoption/
+PAGE: https://harness.dbwarden.org/suites/adoption/
 ========================================================================
 
 # Adoption Tests
@@ -1240,7 +1240,7 @@ tool execution requires those external tools and is intentionally not claimed
 by the current suite.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/distribution/
+PAGE: https://harness.dbwarden.org/suites/distribution/
 ========================================================================
 
 # Distribution Tests
@@ -1269,7 +1269,7 @@ The distribution workflow installs the locked harness environment and runs
 these checks in GitHub Actions.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/
+PAGE: https://harness.dbwarden.org/suites/
 ========================================================================
 
 # Test Suites
@@ -1299,7 +1299,7 @@ uv run pytest -q suites/distribution
 Use the integration environment variable for provider categories.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/performance/
+PAGE: https://harness.dbwarden.org/suites/performance/
 ========================================================================
 
 # Performance Tests
@@ -1337,7 +1337,7 @@ be compared on the same Python, filesystem, DBWarden version, and machine
 class. The repository baseline is a reference measurement, not a universal SLA.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/plugins/
+PAGE: https://harness.dbwarden.org/suites/plugins/
 ========================================================================
 
 # Plugin Tests
@@ -1373,7 +1373,7 @@ Plugin composition with real backend objects is the next expansion area. The
 current suite intentionally separates package discovery from backend behavior.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/round-trip/
+PAGE: https://harness.dbwarden.org/suites/round-trip/
 ========================================================================
 
 # Round Trip Tests
@@ -1408,7 +1408,7 @@ and public diff output. This catches failures where SQL execution succeeds but
 the representation used for the next migration is incomplete.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/sql-contracts/
+PAGE: https://harness.dbwarden.org/suites/sql-contracts/
 ========================================================================
 
 # SQL Contract Tests
@@ -1434,7 +1434,7 @@ SQL snapshots are contracts, not substitutes for real database execution.
 Round-trip suites provide the execution proof.
 
 ========================================================================
-PAGE: https://dbwarden-org.github.io/dbwarden-harness/why-a-harness/
+PAGE: https://harness.dbwarden.org/why-a-harness/
 ========================================================================
 
 # Why a Harness?

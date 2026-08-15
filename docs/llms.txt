@@ -2,54 +2,54 @@
 > Black-box release validation for DBWarden, real database backends, and plugins.
 
 ## Overview
-- [DBWarden Test Harness](https://dbwarden-org.github.io/dbwarden-harness/): Release boundary for DBWarden consumer validation
-- [Why a Harness?](https://dbwarden-org.github.io/dbwarden-harness/why-a-harness/): Why published packages, real databases, version matrices, and evidence require a separate harness
-- [Architecture](https://dbwarden-org.github.io/dbwarden-harness/architecture/): Public CLI, providers, migration player, drift checker, artifacts, and black-box boundaries
+- [DBWarden Test Harness](https://harness.dbwarden.org/): Release boundary for DBWarden consumer validation
+- [Why a Harness?](https://harness.dbwarden.org/why-a-harness/): Why published packages, real databases, version matrices, and evidence require a separate harness
+- [Architecture](https://harness.dbwarden.org/architecture/): Public CLI, providers, migration player, drift checker, artifacts, and black-box boundaries
 
 ## Get Started
-- [Setup](https://dbwarden-org.github.io/dbwarden-harness/getting-started/setup/): Requirements, locked installation, Docker, and distribution checks
-- [Running Tests](https://dbwarden-org.github.io/dbwarden-harness/getting-started/running-tests/): Fast, integration, selected backend, slow, and artifact commands
-- [Writing Fixtures](https://dbwarden-org.github.io/dbwarden-harness/getting-started/writing-fixtures/): Reference schema and provider fixture contract
-- [Contributing](https://dbwarden-org.github.io/dbwarden-harness/getting-started/contributing/): Test placement, black-box rules, and documentation workflow
+- [Setup](https://harness.dbwarden.org/getting-started/setup/): Requirements, locked installation, Docker, and distribution checks
+- [Running Tests](https://harness.dbwarden.org/getting-started/running-tests/): Fast, integration, selected backend, slow, and artifact commands
+- [Writing Fixtures](https://harness.dbwarden.org/getting-started/writing-fixtures/): Reference schema and provider fixture contract
+- [Contributing](https://harness.dbwarden.org/getting-started/contributing/): Test placement, black-box rules, and documentation workflow
 
 ## Correctness
-- [Correctness Overview](https://dbwarden-org.github.io/dbwarden-harness/correctness/): Layered meaning of a passing harness test
-- [Convergence Model](https://dbwarden-org.github.io/dbwarden-harness/correctness/convergence/): Reference, migration, live, and reverse-engineered states
-- [Round Trips](https://dbwarden-org.github.io/dbwarden-harness/correctness/round-trips/): Baseline, generate-models, and evolution flows
-- [Semantic Drift](https://dbwarden-org.github.io/dbwarden-harness/correctness/semantic-drift/): Portable and backend-specific schema comparison
-- [Durability and Recovery](https://dbwarden-org.github.io/dbwarden-harness/correctness/durability/): Long chains, rollback, reapply, and repair after failure
-- [Safety](https://dbwarden-org.github.io/dbwarden-harness/correctness/safety/): Destructive operation classification and force checks
-- [Offline Integrity](https://dbwarden-org.github.io/dbwarden-harness/correctness/offline-integrity/): Model-state manifests and SHA-256 verification
+- [Correctness Overview](https://harness.dbwarden.org/correctness/): Layered meaning of a passing harness test
+- [Convergence Model](https://harness.dbwarden.org/correctness/convergence/): Reference, migration, live, and reverse-engineered states
+- [Round Trips](https://harness.dbwarden.org/correctness/round-trips/): Baseline, generate-models, and evolution flows
+- [Semantic Drift](https://harness.dbwarden.org/correctness/semantic-drift/): Portable and backend-specific schema comparison
+- [Durability and Recovery](https://harness.dbwarden.org/correctness/durability/): Long chains, rollback, reapply, and repair after failure
+- [Safety](https://harness.dbwarden.org/correctness/safety/): Destructive operation classification and force checks
+- [Offline Integrity](https://harness.dbwarden.org/correctness/offline-integrity/): Model-state manifests and SHA-256 verification
 
 ## Test Suites
-- [Test Suites](https://dbwarden-org.github.io/dbwarden-harness/suites/): Confidence questions and suite locations
-- [Distribution](https://dbwarden-org.github.io/dbwarden-harness/suites/distribution/): Clean package, entry point, and CLI checks
-- [Round Trips](https://dbwarden-org.github.io/dbwarden-harness/suites/round-trip/): Real database migration and convergence checks
-- [Plugins](https://dbwarden-org.github.io/dbwarden-harness/suites/plugins/): Public plugin installation and discovery
-- [Adoption](https://dbwarden-org.github.io/dbwarden-harness/suites/adoption/): Existing schema handoff and baselines
-- [SQL Contracts](https://dbwarden-org.github.io/dbwarden-harness/suites/sql-contracts/): Deterministic output and committed snapshots
-- [Performance](https://dbwarden-org.github.io/dbwarden-harness/suites/performance/): Scale, replay, and serialization measurements
+- [Test Suites](https://harness.dbwarden.org/suites/): Confidence questions and suite locations
+- [Distribution](https://harness.dbwarden.org/suites/distribution/): Clean package, entry point, and CLI checks
+- [Round Trips](https://harness.dbwarden.org/suites/round-trip/): Real database migration and convergence checks
+- [Plugins](https://harness.dbwarden.org/suites/plugins/): Public plugin installation and discovery
+- [Adoption](https://harness.dbwarden.org/suites/adoption/): Existing schema handoff and baselines
+- [SQL Contracts](https://harness.dbwarden.org/suites/sql-contracts/): Deterministic output and committed snapshots
+- [Performance](https://harness.dbwarden.org/suites/performance/): Scale, replay, and serialization measurements
 
 ## Databases
-- [Provider Overview](https://dbwarden-org.github.io/dbwarden-harness/providers/): Disposable provider model and declared versions
-- [Provider Lifecycle](https://dbwarden-org.github.io/dbwarden-harness/providers/lifecycle/): Readiness, reset, diagnostics, and teardown
-- [Version Matrix](https://dbwarden-org.github.io/dbwarden-harness/providers/version-matrix/): Version selection and experimental cells
-- [Relational Providers](https://dbwarden-org.github.io/dbwarden-harness/providers/relational/): PostgreSQL, MySQL, and MariaDB
-- [ClickHouse](https://dbwarden-org.github.io/dbwarden-harness/providers/clickhouse/): Native metadata and MergeTree checks
-- [SQLite](https://dbwarden-org.github.io/dbwarden-harness/providers/sqlite/): Fast local workflows and limitations
+- [Provider Overview](https://harness.dbwarden.org/providers/): Disposable provider model and declared versions
+- [Provider Lifecycle](https://harness.dbwarden.org/providers/lifecycle/): Readiness, reset, diagnostics, and teardown
+- [Version Matrix](https://harness.dbwarden.org/providers/version-matrix/): Version selection and experimental cells
+- [Relational Providers](https://harness.dbwarden.org/providers/relational/): PostgreSQL, MySQL, and MariaDB
+- [ClickHouse](https://harness.dbwarden.org/providers/clickhouse/): Native metadata and MergeTree checks
+- [SQLite](https://harness.dbwarden.org/providers/sqlite/): Fast local workflows and limitations
 
 ## Operations
-- [Failure Artifacts](https://dbwarden-org.github.io/dbwarden-harness/operations/artifacts/): Commands, generated files, provenance, and provider logs
-- [Release Provenance](https://dbwarden-org.github.io/dbwarden-harness/operations/provenance/): Installed package and runtime identity
-- [CI](https://dbwarden-org.github.io/dbwarden-harness/operations/ci/): Pull request, matrix, plugin, distribution, and performance workflows
-- [Troubleshooting](https://dbwarden-org.github.io/dbwarden-harness/operations/troubleshooting/): Common local and CI failures
-- [Compatibility Findings](https://dbwarden-org.github.io/dbwarden-harness/operations/compatibility/): Known PyPI 0.16.5 behavior and experimental cells
+- [Failure Artifacts](https://harness.dbwarden.org/operations/artifacts/): Commands, generated files, provenance, and provider logs
+- [Release Provenance](https://harness.dbwarden.org/operations/provenance/): Installed package and runtime identity
+- [CI](https://harness.dbwarden.org/operations/ci/): Pull request, matrix, plugin, distribution, and performance workflows
+- [Troubleshooting](https://harness.dbwarden.org/operations/troubleshooting/): Common local and CI failures
+- [Compatibility Findings](https://harness.dbwarden.org/operations/compatibility/): Known PyPI 0.16.5 behavior and experimental cells
 
 ## Reference
-- [Environment Variables](https://dbwarden-org.github.io/dbwarden-harness/reference/environment/): Harness controls
-- [Fixture Contract](https://dbwarden-org.github.io/dbwarden-harness/reference/fixture-contract/): Schema and migration fixture shape
-- [Repository Layout](https://dbwarden-org.github.io/dbwarden-harness/reference/layout/): Source directory responsibilities
-- [Glossary](https://dbwarden-org.github.io/dbwarden-harness/reference/glossary/): Harness terminology
+- [Environment Variables](https://harness.dbwarden.org/reference/environment/): Harness controls
+- [Fixture Contract](https://harness.dbwarden.org/reference/fixture-contract/): Schema and migration fixture shape
+- [Repository Layout](https://harness.dbwarden.org/reference/layout/): Source directory responsibilities
+- [Glossary](https://harness.dbwarden.org/reference/glossary/): Harness terminology
 
 For the complete documentation in one file, see
-[llms-full.txt](https://dbwarden-org.github.io/dbwarden-harness/llms-full.txt).
+[llms-full.txt](https://harness.dbwarden.org/llms-full.txt).

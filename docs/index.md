@@ -28,7 +28,7 @@ description: Black-box release validation for DBWarden, real database backends, 
 </p>
 
 <p align="center">
-  <strong><a href="https://dbwarden-org.github.io/dbwarden-harness/">Documentation</a></strong>
+  <strong><a href="https://harness.dbwarden.org/">Documentation</a></strong>
   &nbsp;|&nbsp;
   <strong><a href="https://github.com/dbwarden-org/dbwarden-harness">Source Code</a></strong>
   &nbsp;|&nbsp;

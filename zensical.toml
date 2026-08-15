@@ -1,7 +1,7 @@
 [project]
 site_name = "DBWarden Test Harness Documentation"
 site_description = "Black-box release validation for DBWarden, database backends, and plugins."
-site_url = "https://dbwarden-org.github.io/dbwarden-harness"
+site_url = "https://harness.dbwarden.org"
 docs_dir = "docs"
 site_dir = "site"
 
@@ -120,8 +120,8 @@ Reference = [
 
 [project.markdown_extensions]
 "seoslug.contrib.zensical" = {
-  canonical_host = "dbwarden-org.github.io",
-  public_base_url = "https://dbwarden-org.github.io/dbwarden-harness/",
+  canonical_host = "harness.dbwarden.org",
+  public_base_url = "https://harness.dbwarden.org/",
   site_name = "DBWarden Test Harness Documentation",
   title_template = "{title} - DBWarden Test Harness",
   publisher_name = "Emiliano Gandini Outeda",
