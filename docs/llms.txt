@@ -1,8 +1,8 @@
-# DBWarden Test Harness Documentation
-> Black-box release validation for DBWarden, real database backends, and plugins.
+# dbwarden Test Harness Documentation
+> Black-box release validation for dbwarden, real database backends, and plugins.
 
 ## Overview
-- [DBWarden Test Harness](https://harness.dbwarden.org/): Release boundary for DBWarden consumer validation
+- [dbwarden Test Harness](https://harness.dbwarden.org/): Release boundary for dbwarden consumer validation
 - [Why a Harness?](https://harness.dbwarden.org/why-a-harness/): Why published packages, real databases, version matrices, and evidence require a separate harness
 - [Architecture](https://harness.dbwarden.org/architecture/): Public CLI, providers, migration player, drift checker, artifacts, and black-box boundaries
 

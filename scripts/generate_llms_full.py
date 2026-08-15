@@ -38,8 +38,8 @@ def main() -> int:
         if path.name not in SKIP_FILES and not any(directory in path.parts for directory in SKIP_DIRS)
     ]
     sections = [
-        "# DBWarden Test Harness Documentation",
-        "> Full documentation for black-box DBWarden release validation",
+        "# dbwarden Test Harness Documentation",
+        "> Full documentation for black-box dbwarden release validation",
         f"> Source: {SITE_URL}",
         f"> Pages: {len(markdown_files)}",
         "",

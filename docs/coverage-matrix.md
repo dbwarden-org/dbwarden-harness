@@ -1,6 +1,6 @@
 # Harness Coverage Matrix
 
-The matrix separates provider lifecycle coverage from actual DBWarden migration
+The matrix separates provider lifecycle coverage from actual dbwarden migration
 coverage. A provider being ready is not evidence that migrations converge.
 
 | Area | SQLite | PostgreSQL | MySQL | MariaDB | ClickHouse |

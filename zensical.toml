@@ -1,6 +1,6 @@
 [project]
-site_name = "DBWarden Test Harness Documentation"
-site_description = "Black-box release validation for DBWarden, database backends, and plugins."
+site_name = "dbwarden Test Harness Documentation"
+site_description = "Black-box release validation for dbwarden, database backends, and plugins."
 site_url = "https://harness.dbwarden.org"
 docs_dir = "docs"
 site_dir = "site"
@@ -47,12 +47,12 @@ toggle.name = "Switch to light mode"
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
 link = "https://github.com/dbwarden-org/dbwarden-harness"
-name = "DBWarden Test Harness on GitHub"
+name = "dbwarden Test Harness on GitHub"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
 link = "https://github.com/dbwarden-org/dbwarden"
-name = "DBWarden on GitHub"
+name = "dbwarden on GitHub"
 
 [[project.nav]]
 Overview = [
@@ -122,8 +122,8 @@ Reference = [
 "seoslug.contrib.zensical" = {
   canonical_host = "harness.dbwarden.org",
   public_base_url = "https://harness.dbwarden.org/",
-  site_name = "DBWarden Test Harness Documentation",
-  title_template = "{title} - DBWarden Test Harness",
+  site_name = "dbwarden Test Harness Documentation",
+  title_template = "{title} - dbwarden Test Harness",
   publisher_name = "Emiliano Gandini Outeda",
   locale = "en_US",
   auto_generate_schema = true,

@@ -12,7 +12,7 @@ measure durability and performance.
 | Safety | `suites/safety` | Are risky operations classified and guarded? |
 | Offline | `suites/offline` | Can local artifacts support offline workflows? |
 | Plugins | `suites/plugin_integration` | Do public plugins install and compose? |
-| Adoption | `suites/adoption` | Can an existing schema be handed to DBWarden? |
+| Adoption | `suites/adoption` | Can an existing schema be handed to dbwarden? |
 | SQL contracts | `suites/sql_contract` | Is generated output deterministic and approved? |
 | Performance | `suites/performance` | Does scale remain within the measured budget? |
 

@@ -51,9 +51,9 @@ def collect_provenance(
 def assert_installed_distribution(report: dict[str, Any], *, checkout: Path | str | None = None) -> None:
     dbwarden = report.get("distributions", {}).get("dbwarden", {})
     if not dbwarden.get("installed"):
-        raise AssertionError("DBWarden is not installed in the harness environment")
+        raise AssertionError("dbwarden is not installed in the harness environment")
     if checkout is not None:
         location = Path(dbwarden.get("location", "")).resolve()
         checkout = Path(checkout).resolve()
         if location == checkout or location in checkout.parents:
-            raise AssertionError(f"Harness resolved DBWarden from the source checkout: {location}")
+            raise AssertionError(f"Harness resolved dbwarden from the source checkout: {location}")

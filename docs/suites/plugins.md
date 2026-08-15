@@ -21,7 +21,7 @@ also verify command construction and explicit version pinning.
 ## Run
 
 The full plugin installation test is integration marked because it installs
-packages through the DBWarden CLI:
+packages through the dbwarden CLI:
 
 ```bash
 DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/plugin_integration

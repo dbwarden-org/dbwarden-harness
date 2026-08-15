@@ -1,7 +1,7 @@
 # ClickHouse
 
 ClickHouse uses the native `clickhouse_connect` client for readiness, reset,
-and semantic capture. Provider URLs use the HTTP protocol and DBWarden is
+and semantic capture. Provider URLs use the HTTP protocol and dbwarden is
 configured with the ClickHouse database type.
 
 ## Analytics fixture

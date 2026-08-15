@@ -1,6 +1,6 @@
 # Performance Tests
 
-Performance tests measure the harness and DBWarden as a consumer workflow.
+Performance tests measure the harness and dbwarden as a consumer workflow.
 
 ## Measurements
 
@@ -29,5 +29,5 @@ DBWARDEN_HARNESS_RUN_500_MIGRATION=1 uv run pytest suites/performance/test_conve
 ```
 
 The benchmark is opt in because it is intentionally expensive. Results should
-be compared on the same Python, filesystem, DBWarden version, and machine
+be compared on the same Python, filesystem, dbwarden version, and machine
 class. The repository baseline is a reference measurement, not a universal SLA.

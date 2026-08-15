@@ -50,7 +50,7 @@ class CommandResult:
 
 
 class DbwardenCli:
-    """Invoke the installed DBWarden CLI without importing implementation modules."""
+    """Invoke the installed dbwarden CLI without importing implementation modules."""
 
     def __init__(
         self,

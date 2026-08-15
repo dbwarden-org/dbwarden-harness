@@ -1,7 +1,7 @@
 # Alembic Adoption Fixture
 
 The adoption path starts with an existing Alembic-managed database schema, runs
-`dbwarden generate-models`, creates a DBWarden baseline, and then validates
+`dbwarden generate-models`, creates a dbwarden baseline, and then validates
 subsequent model changes through the public CLI.
 
 The executable smoke path creates a pre-existing SQLite table, invokes

@@ -2,7 +2,7 @@
 
 Providers give integration tests real, disposable database instances. They
 are deliberately separate from the migration assertions so startup failures,
-server readiness failures, and DBWarden failures can be distinguished.
+server readiness failures, and dbwarden failures can be distinguished.
 
 ## Declared versions
 

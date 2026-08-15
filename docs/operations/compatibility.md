@@ -9,10 +9,10 @@ limitations.
   referenced parent table.
 - MySQL reverse engineering can report an incomplete `varchar` type during a
   full-version final diff.
-- Default reverse engineering can include DBWarden bookkeeping tables in the
+- Default reverse engineering can include dbwarden bookkeeping tables in the
   generated model file.
 
-The harness excludes DBWarden-owned tables for the supported application model
+The harness excludes dbwarden-owned tables for the supported application model
 round trip. The MariaDB generate-models case remains a strict XFAIL, and the
 MySQL and MariaDB full-version cells are experimental in CI.
 
@@ -20,7 +20,7 @@ MySQL and MariaDB full-version cells are experimental in CI.
 
 An experimental failure is still a test result. It is allowed to avoid making
 the overall scheduled workflow red while the package defect is known. It must
-remain visible in logs, artifacts, and this document. When a new DBWarden
+remain visible in logs, artifacts, and this document. When a new dbwarden
 release is available, rerun the cell. A strict unexpected pass also requires
 review so the compatibility policy can be updated deliberately.
 

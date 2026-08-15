@@ -13,4 +13,4 @@ def test_harness_does_not_import_dbwarden_private_modules():
         if private_module in text or internal_module in text:
             violations.append(str(path.relative_to(root)))
 
-    assert not violations, f"Private DBWarden imports found: {violations}"
+    assert not violations, f"Private dbwarden imports found: {violations}"

@@ -30,9 +30,9 @@ converted into an unconditional skip.
 
 Keep changes focused. A test description should explain what a user would
 experience and why the source repository cannot already prove it. Integration
-tests must use real providers and the public DBWarden CLI.
+tests must use real providers and the public dbwarden CLI.
 
-Do not add private DBWarden imports, mocks that replace database connections,
+Do not add private dbwarden imports, mocks that replace database connections,
 or broad warning suppression. If a behavior is unsupported, document the
 limitation and make its test state explicit.
 

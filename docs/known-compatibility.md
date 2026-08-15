@@ -3,11 +3,11 @@
 The integration suite is intentionally strict. These findings are not marked
 as passing or silently skipped when the affected test is selected.
 
-## DBWarden `0.16.5`
+## dbwarden `0.16.5`
 
 - PostgreSQL ecommerce migrations require `IndexSpec` metadata. SQLAlchemy-only
   `Index` declarations are not emitted by the release; the reference schemas
-  use the public DBWarden metadata form.
+  use the public dbwarden metadata form.
 - PyPI `0.16.5` MariaDB migration generation orders `order_items` before its
   referenced `orders` table, producing a foreign-key creation error. The core
   checkout now topologically orders newly created tables; this is fixed for the
@@ -29,5 +29,5 @@ Reproduce backend findings with:
 DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest suites/round_trip/test_backend_round_trip.py -q
 ```
 
-The provider lifecycle matrix is independent of these DBWarden release
+The provider lifecycle matrix is independent of these dbwarden release
 findings and passes all 14 declared backend/version cases.

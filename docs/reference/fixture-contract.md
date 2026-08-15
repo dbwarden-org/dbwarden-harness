@@ -9,13 +9,13 @@ A reference schema directory contains:
 - `README.md`
 
 The registry converts `schema.json` into `ReferenceSchema`. The model source is
-copied into a temporary consumer project and loaded by DBWarden's public model
+copied into a temporary consumer project and loaded by dbwarden's public model
 discovery path.
 
 ## Migration fixture
 
 Handwritten migration tests use a database directory such as
-`migrations/primary`. Files use the DBWarden format with an upgrade section and
+`migrations/primary`. Files use the dbwarden format with an upgrade section and
 a rollback section. The migration player invokes the CLI and never calls an
 internal migration executor.
 

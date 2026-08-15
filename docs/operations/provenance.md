@@ -7,15 +7,15 @@ Release provenance makes a harness result attributable.
 - Python version
 - Python implementation
 - Platform string
-- DBWarden distribution version
-- DBWarden installation location
+- dbwarden distribution version
+- dbwarden installation location
 - Console entry points
 - Optional plugin distribution versions and locations
 - Lockfile path and SHA-256 digest
 
-The distribution isolation test rejects a DBWarden location inside the source
+The distribution isolation test rejects a dbwarden location inside the source
 checkout supplied to the assertion. The black-box boundary test rejects private
-DBWarden imports in harness source.
+dbwarden imports in harness source.
 
 ## Why this is required
 

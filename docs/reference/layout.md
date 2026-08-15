@@ -14,6 +14,6 @@ docs/                    This documentation site
 zensical.toml            Documentation configuration and navigation
 ```
 
-The harness repository is independent of the DBWarden source repository. A
-clean harness install resolves DBWarden from the configured distribution
+The harness repository is independent of the dbwarden source repository. A
+clean harness install resolves dbwarden from the configured distribution
 environment.

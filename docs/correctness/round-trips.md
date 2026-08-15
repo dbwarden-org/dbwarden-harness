@@ -24,9 +24,9 @@ The reverse-engineering suite:
 1. Applies the reference schema to a real provider.
 2. Runs `generate-models`.
 3. Verifies that the generated file contains the application tables.
-4. Excludes DBWarden-owned bookkeeping tables from application model input.
+4. Excludes dbwarden-owned bookkeeping tables from application model input.
 5. Enables ClickHouse engine metadata where appropriate.
-6. Reloads the generated file through DBWarden.
+6. Reloads the generated file through dbwarden.
 7. Runs public diff and requires convergence.
 
 The test also exercises SQLite table filtering. MariaDB has a strict XFAIL for

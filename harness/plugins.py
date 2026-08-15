@@ -18,7 +18,7 @@ PLUGIN_VERSION_MATRIX = {plugin: (None,) for plugin in REQUIRED_PLUGINS}
 
 
 class PluginInstaller:
-    """Install plugins through DBWarden's public plugin CLI."""
+    """Install plugins through dbwarden's public plugin CLI."""
 
     def __init__(self, work_dir: Path) -> None:
         self.cli = DbwardenCli(work_dir)

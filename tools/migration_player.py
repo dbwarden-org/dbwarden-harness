@@ -9,7 +9,7 @@ from harness.cli import CommandResult, DbwardenCli
 
 
 class MigrationPlayer:
-    """Drive a disposable DBWarden project through its public CLI."""
+    """Drive a disposable dbwarden project through its public CLI."""
 
     def __init__(self, database_url: str, work_dir: Path) -> None:
         self.database_url = database_url
@@ -28,7 +28,7 @@ class MigrationPlayer:
         dev_database_type: str | None = None,
         dev_database_url: str | None = None,
     ) -> Path:
-        """Write a consumer config using only DBWarden's public function API."""
+        """Write a consumer config using only dbwarden's public function API."""
         config_path = self.work_dir / "dbwarden.py"
         resolved_type = database_type or self._database_type()
         model_lines = f"    model_paths={list(model_paths)!r},\n" if model_paths else ""
@@ -125,7 +125,7 @@ class MigrationPlayer:
 
 
 def parse_diff_output(output: str) -> list[dict[str, Any]]:
-    """Extract DBWarden's JSON diff payload from log-prefixed CLI output."""
+    """Extract dbwarden's JSON diff payload from log-prefixed CLI output."""
     for start, character in enumerate(output):
         if character != "[":
             continue

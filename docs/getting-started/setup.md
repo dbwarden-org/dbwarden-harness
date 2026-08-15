@@ -20,7 +20,7 @@ uv venv
 uv sync --locked
 ```
 
-The lockfile includes DBWarden database extras, Testcontainers, pytest, Ruff,
+The lockfile includes dbwarden database extras, Testcontainers, pytest, Ruff,
 benchmark tooling, Zensical, and the SEO extension used by the documentation.
 
 ## Confirm the consumer package
@@ -30,7 +30,7 @@ uv run dbwarden version
 uv run pytest -q tests/test_distribution.py
 ```
 
-The distribution tests verify that DBWarden is installed, exposes its expected
+The distribution tests verify that dbwarden is installed, exposes its expected
 package files, has a console entry point, and does not resolve from a source
 checkout.
 

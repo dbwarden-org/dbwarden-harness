@@ -52,4 +52,4 @@ def test_report_writers_emit_machine_and_human_readable_reports(tmp_path: Path):
     write_json_report(report, tmp_path / "report.json")
     write_markdown_report(report, tmp_path / "report.md")
     assert '"tests": 2' in (tmp_path / "report.json").read_text(encoding="utf-8")
-    assert "# DBWarden Harness Report" in (tmp_path / "report.md").read_text(encoding="utf-8")
+    assert "# dbwarden Harness Report" in (tmp_path / "report.md").read_text(encoding="utf-8")

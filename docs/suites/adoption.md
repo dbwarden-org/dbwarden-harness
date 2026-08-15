@@ -1,7 +1,7 @@
 # Adoption Tests
 
 Adoption tests cover the handoff from an existing schema or external migration
-tool to DBWarden.
+tool to dbwarden.
 
 ## Fixtures
 

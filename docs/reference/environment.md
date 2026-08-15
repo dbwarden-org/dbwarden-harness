@@ -5,7 +5,7 @@
 | `DBWARDEN_HARNESS_RUN_INTEGRATION` | Enables Docker and provider tests when set to `1`. |
 | `DBWARDEN_HARNESS_RUN_SCALE` | Enables scale benchmarks when set to `1`. |
 | `DBWARDEN_HARNESS_RUN_500_MIGRATION` | Enables the expensive 500 migration benchmark when set to `1`. |
-| `DBWARDEN_HARNESS_DEFER_EXECUTABLE` | Points benchmark comparison at a DBWarden checkout executable. |
+| `DBWARDEN_HARNESS_DEFER_EXECUTABLE` | Points benchmark comparison at a dbwarden checkout executable. |
 | `DBWARDEN_HARNESS_DEFER_SNAPSHOTS` | Enables deferred snapshot mode in benchmark helpers. |
 | `DBWARDEN_HARNESS_BACKEND` | Limits provider matrix lifecycle cases to one backend. |
 | `DBWARDEN_HARNESS_VERSIONS` | Limits provider matrix lifecycle cases to listed versions. |

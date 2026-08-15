@@ -31,12 +31,12 @@ the fixture to hide a real release defect.
 
 ## Generated models fail to reload
 
-Inspect `generated/models.py` and `provenance.json`. Confirm that DBWarden-owned
+Inspect `generated/models.py` and `provenance.json`. Confirm that dbwarden-owned
 tables were excluded from application model input and that the generated file
 uses only public installed APIs.
 
 ## Tests pass locally but fail in CI
 
-Compare Python version, DBWarden version, provider image, lockfile digest, and
+Compare Python version, dbwarden version, provider image, lockfile digest, and
 Docker architecture from the artifact bundle. The harness deliberately records
 these values because release and environment differences are common causes.

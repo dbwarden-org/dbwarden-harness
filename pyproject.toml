@@ -1,7 +1,7 @@
 [project]
 name = "dbwarden-test-harness"
 version = "0.1.0"
-description = "Black-box integration and distribution harness for DBWarden"
+description = "Black-box integration and distribution harness for dbwarden"
 readme = "README.md"
 requires-python = ">=3.12.7"
 dependencies = [

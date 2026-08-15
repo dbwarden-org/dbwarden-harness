@@ -1,6 +1,6 @@
 # Safety
 
-Safety tests verify that DBWarden distinguishes harmless changes from changes
+Safety tests verify that dbwarden distinguishes harmless changes from changes
 that can destroy data or invalidate an application.
 
 ## Current checks

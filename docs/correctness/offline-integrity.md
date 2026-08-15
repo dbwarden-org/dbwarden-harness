@@ -1,6 +1,6 @@
 # Offline Integrity
 
-Offline checks validate artifacts that DBWarden uses without a live database.
+Offline checks validate artifacts that dbwarden uses without a live database.
 
 ## State manifests
 

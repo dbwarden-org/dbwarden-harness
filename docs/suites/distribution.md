@@ -4,7 +4,7 @@ Distribution tests treat the installed wheel as the product under test.
 
 ## Covered behavior
 
-- DBWarden package metadata can be inspected.
+- dbwarden package metadata can be inspected.
 - Expected package files are present.
 - The `dbwarden` console entry point exists.
 - Development files are not leaked into the distribution.

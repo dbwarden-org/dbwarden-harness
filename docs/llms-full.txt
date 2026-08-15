@@ -1,5 +1,5 @@
-# DBWarden Test Harness Documentation
-> Full documentation for black-box DBWarden release validation
+# dbwarden Test Harness Documentation
+> Full documentation for black-box dbwarden release validation
 > Source: https://harness.dbwarden.org
 > Pages: 39
 
@@ -33,7 +33,7 @@ The harness is organized around a small number of consumer-facing abstractions.
 
 Tests invoke the installed `dbwarden` command through
 `harness/cli.py`. The runner captures output, return codes, timeouts, and the
-working directory. It does not import DBWarden implementation modules.
+working directory. It does not import dbwarden implementation modules.
 
 ## MigrationPlayer
 
@@ -83,8 +83,8 @@ directories and provider diagnostics when a provider fixture is available.
 
 ## Black-box enforcement
 
-`tests/test_black_box_boundary.py` scans harness source for private DBWarden
-imports. `harness/provenance.py` checks that installed DBWarden is not resolved
+`tests/test_black_box_boundary.py` scans harness source for private dbwarden
+imports. `harness/provenance.py` checks that installed dbwarden is not resolved
 from the harness or product source checkout.
 
 ========================================================================
@@ -175,7 +175,7 @@ PAGE: https://harness.dbwarden.org/correctness/
 
 # Correctness
 
-The harness defines correctness as evidence that a published DBWarden package
+The harness defines correctness as evidence that a published dbwarden package
 can move a real database between intended schema states and describe the result
 accurately.
 
@@ -207,7 +207,7 @@ PAGE: https://harness.dbwarden.org/correctness/offline-integrity/
 
 # Offline Integrity
 
-Offline checks validate artifacts that DBWarden uses without a live database.
+Offline checks validate artifacts that dbwarden uses without a live database.
 
 ## State manifests
 
@@ -259,9 +259,9 @@ The reverse-engineering suite:
 1. Applies the reference schema to a real provider.
 2. Runs `generate-models`.
 3. Verifies that the generated file contains the application tables.
-4. Excludes DBWarden-owned bookkeeping tables from application model input.
+4. Excludes dbwarden-owned bookkeeping tables from application model input.
 5. Enables ClickHouse engine metadata where appropriate.
-6. Reloads the generated file through DBWarden.
+6. Reloads the generated file through dbwarden.
 7. Runs public diff and requires convergence.
 
 The test also exercises SQLite table filtering. MariaDB has a strict XFAIL for
@@ -280,7 +280,7 @@ PAGE: https://harness.dbwarden.org/correctness/safety/
 
 # Safety
 
-Safety tests verify that DBWarden distinguishes harmless changes from changes
+Safety tests verify that dbwarden distinguishes harmless changes from changes
 that can destroy data or invalidate an application.
 
 ## Current checks
@@ -352,7 +352,7 @@ PAGE: https://harness.dbwarden.org/coverage-matrix/
 
 # Harness Coverage Matrix
 
-The matrix separates provider lifecycle coverage from actual DBWarden migration
+The matrix separates provider lifecycle coverage from actual dbwarden migration
 coverage. A provider being ready is not evidence that migrations converge.
 
 | Area | SQLite | PostgreSQL | MySQL | MariaDB | ClickHouse |
@@ -417,9 +417,9 @@ converted into an unconditional skip.
 
 Keep changes focused. A test description should explain what a user would
 experience and why the source repository cannot already prove it. Integration
-tests must use real providers and the public DBWarden CLI.
+tests must use real providers and the public dbwarden CLI.
 
-Do not add private DBWarden imports, mocks that replace database connections,
+Do not add private dbwarden imports, mocks that replace database connections,
 or broad warning suppression. If a behavior is unsupported, document the
 limitation and make its test state explicit.
 
@@ -543,7 +543,7 @@ uv venv
 uv sync --locked
 ```
 
-The lockfile includes DBWarden database extras, Testcontainers, pytest, Ruff,
+The lockfile includes dbwarden database extras, Testcontainers, pytest, Ruff,
 benchmark tooling, Zensical, and the SEO extension used by the documentation.
 
 ## Confirm the consumer package
@@ -553,7 +553,7 @@ uv run dbwarden version
 uv run pytest -q tests/test_distribution.py
 ```
 
-The distribution tests verify that DBWarden is installed, exposes its expected
+The distribution tests verify that dbwarden is installed, exposes its expected
 package files, has a console entry point, and does not resolve from a source
 checkout.
 
@@ -574,7 +574,7 @@ PAGE: https://harness.dbwarden.org/getting-started/writing-fixtures/
 # Writing Fixtures
 
 Reference schemas are the main way to add repeatable database behavior. A
-schema is data plus a model source file, not a test that knows DBWarden
+schema is data plus a model source file, not a test that knows dbwarden
 internals.
 
 ## ReferenceSchema contract
@@ -591,7 +591,7 @@ The registry discovers directories containing `models.py` and `schema.json`.
 
 ## Model source rules
 
-- Import only public DBWarden APIs.
+- Import only public dbwarden APIs.
 - Keep model source deterministic.
 - Use metadata types that represent the intended backend behavior.
 - Keep the fixture small enough to run across the version matrix.
@@ -620,10 +620,10 @@ PAGE: https://harness.dbwarden.org/
 ========================================================================
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/dbwarden-org/dbwarden/refs/heads/main/assets/icon.png" alt="DBWarden" width="128"/>
+  <img src="https://raw.githubusercontent.com/dbwarden-org/dbwarden/refs/heads/main/assets/icon.png" alt="dbwarden" width="128"/>
 </p>
 <p align="center">
-  <strong style="font-size: 2.5em;">DBWarden Test Harness</strong>
+  <strong style="font-size: 2.5em;">dbwarden Test Harness</strong>
 </p>
 <p align="center">
     <em>Release confidence through real databases and public interfaces.</em>
@@ -648,15 +648,15 @@ PAGE: https://harness.dbwarden.org/
   &nbsp;|&nbsp;
   <strong><a href="https://github.com/dbwarden-org/dbwarden-harness">Source Code</a></strong>
   &nbsp;|&nbsp;
-  <strong><a href="https://github.com/dbwarden-org/dbwarden">DBWarden</a></strong>
+  <strong><a href="https://github.com/dbwarden-org/dbwarden">dbwarden</a></strong>
 </p>
 
-The DBWarden Test Harness is the release boundary between DBWarden development
-and DBWarden consumption.
+The dbwarden Test Harness is the release boundary between dbwarden development
+and dbwarden consumption.
 
-It installs DBWarden as an external package, invokes public commands, runs
+It installs dbwarden as an external package, invokes public commands, runs
 against real disposable databases, and checks the resulting state. The harness
-is intentionally separate from the DBWarden source repository because source
+is intentionally separate from the dbwarden source repository because source
 tests and consumer tests answer different questions.
 
 ## Start here
@@ -696,11 +696,11 @@ PAGE: https://harness.dbwarden.org/known-compatibility/
 The integration suite is intentionally strict. These findings are not marked
 as passing or silently skipped when the affected test is selected.
 
-## DBWarden `0.16.5`
+## dbwarden `0.16.5`
 
 - PostgreSQL ecommerce migrations require `IndexSpec` metadata. SQLAlchemy-only
   `Index` declarations are not emitted by the release; the reference schemas
-  use the public DBWarden metadata form.
+  use the public dbwarden metadata form.
 - PyPI `0.16.5` MariaDB migration generation orders `order_items` before its
   referenced `orders` table, producing a foreign-key creation error. The core
   checkout now topologically orders newly created tables; this is fixed for the
@@ -722,7 +722,7 @@ Reproduce backend findings with:
 DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest suites/round_trip/test_backend_round_trip.py -q
 ```
 
-The provider lifecycle matrix is independent of these DBWarden release
+The provider lifecycle matrix is independent of these dbwarden release
 findings and passes all 14 declared backend/version cases.
 
 ========================================================================
@@ -823,10 +823,10 @@ limitations.
   referenced parent table.
 - MySQL reverse engineering can report an incomplete `varchar` type during a
   full-version final diff.
-- Default reverse engineering can include DBWarden bookkeeping tables in the
+- Default reverse engineering can include dbwarden bookkeeping tables in the
   generated model file.
 
-The harness excludes DBWarden-owned tables for the supported application model
+The harness excludes dbwarden-owned tables for the supported application model
 round trip. The MariaDB generate-models case remains a strict XFAIL, and the
 MySQL and MariaDB full-version cells are experimental in CI.
 
@@ -834,7 +834,7 @@ MySQL and MariaDB full-version cells are experimental in CI.
 
 An experimental failure is still a test result. It is allowed to avoid making
 the overall scheduled workflow red while the package defect is known. It must
-remain visible in logs, artifacts, and this document. When a new DBWarden
+remain visible in logs, artifacts, and this document. When a new dbwarden
 release is available, rerun the cell. A strict unexpected pass also requires
 review so the compatibility policy can be updated deliberately.
 
@@ -858,15 +858,15 @@ Release provenance makes a harness result attributable.
 - Python version
 - Python implementation
 - Platform string
-- DBWarden distribution version
-- DBWarden installation location
+- dbwarden distribution version
+- dbwarden installation location
 - Console entry points
 - Optional plugin distribution versions and locations
 - Lockfile path and SHA-256 digest
 
-The distribution isolation test rejects a DBWarden location inside the source
+The distribution isolation test rejects a dbwarden location inside the source
 checkout supplied to the assertion. The black-box boundary test rejects private
-DBWarden imports in harness source.
+dbwarden imports in harness source.
 
 ## Why this is required
 
@@ -911,13 +911,13 @@ the fixture to hide a real release defect.
 
 ## Generated models fail to reload
 
-Inspect `generated/models.py` and `provenance.json`. Confirm that DBWarden-owned
+Inspect `generated/models.py` and `provenance.json`. Confirm that dbwarden-owned
 tables were excluded from application model input and that the generated file
 uses only public installed APIs.
 
 ## Tests pass locally but fail in CI
 
-Compare Python version, DBWarden version, provider image, lockfile digest, and
+Compare Python version, dbwarden version, provider image, lockfile digest, and
 Docker architecture from the artifact bundle. The harness deliberately records
 these values because release and environment differences are common causes.
 
@@ -928,7 +928,7 @@ PAGE: https://harness.dbwarden.org/providers/clickhouse/
 # ClickHouse
 
 ClickHouse uses the native `clickhouse_connect` client for readiness, reset,
-and semantic capture. Provider URLs use the HTTP protocol and DBWarden is
+and semantic capture. Provider URLs use the HTTP protocol and dbwarden is
 configured with the ClickHouse database type.
 
 ## Analytics fixture
@@ -958,7 +958,7 @@ PAGE: https://harness.dbwarden.org/providers/
 
 Providers give integration tests real, disposable database instances. They
 are deliberately separate from the migration assertions so startup failures,
-server readiness failures, and DBWarden failures can be distinguished.
+server readiness failures, and dbwarden failures can be distinguished.
 
 ## Declared versions
 
@@ -1103,7 +1103,7 @@ PAGE: https://harness.dbwarden.org/reference/environment/
 | `DBWARDEN_HARNESS_RUN_INTEGRATION` | Enables Docker and provider tests when set to `1`. |
 | `DBWARDEN_HARNESS_RUN_SCALE` | Enables scale benchmarks when set to `1`. |
 | `DBWARDEN_HARNESS_RUN_500_MIGRATION` | Enables the expensive 500 migration benchmark when set to `1`. |
-| `DBWARDEN_HARNESS_DEFER_EXECUTABLE` | Points benchmark comparison at a DBWarden checkout executable. |
+| `DBWARDEN_HARNESS_DEFER_EXECUTABLE` | Points benchmark comparison at a dbwarden checkout executable. |
 | `DBWARDEN_HARNESS_DEFER_SNAPSHOTS` | Enables deferred snapshot mode in benchmark helpers. |
 | `DBWARDEN_HARNESS_BACKEND` | Limits provider matrix lifecycle cases to one backend. |
 | `DBWARDEN_HARNESS_VERSIONS` | Limits provider matrix lifecycle cases to listed versions. |
@@ -1127,13 +1127,13 @@ A reference schema directory contains:
 - `README.md`
 
 The registry converts `schema.json` into `ReferenceSchema`. The model source is
-copied into a temporary consumer project and loaded by DBWarden's public model
+copied into a temporary consumer project and loaded by dbwarden's public model
 discovery path.
 
 ## Migration fixture
 
 Handwritten migration tests use a database directory such as
-`migrations/primary`. Files use the DBWarden format with an upgrade section and
+`migrations/primary`. Files use the dbwarden format with an upgrade section and
 a rollback section. The migration player invokes the CLI and never calls an
 internal migration executor.
 
@@ -1154,7 +1154,7 @@ PAGE: https://harness.dbwarden.org/reference/glossary/
   implementation details.
 
 **Consumer project**
-: A temporary project directory containing DBWarden configuration, model files,
+: A temporary project directory containing dbwarden configuration, model files,
   migrations, and database state.
 
 **Drift**
@@ -1199,8 +1199,8 @@ docs/                    This documentation site
 zensical.toml            Documentation configuration and navigation
 ```
 
-The harness repository is independent of the DBWarden source repository. A
-clean harness install resolves DBWarden from the configured distribution
+The harness repository is independent of the dbwarden source repository. A
+clean harness install resolves dbwarden from the configured distribution
 environment.
 
 ========================================================================
@@ -1210,7 +1210,7 @@ PAGE: https://harness.dbwarden.org/suites/adoption/
 # Adoption Tests
 
 Adoption tests cover the handoff from an existing schema or external migration
-tool to DBWarden.
+tool to dbwarden.
 
 ## Fixtures
 
@@ -1249,7 +1249,7 @@ Distribution tests treat the installed wheel as the product under test.
 
 ## Covered behavior
 
-- DBWarden package metadata can be inspected.
+- dbwarden package metadata can be inspected.
 - Expected package files are present.
 - The `dbwarden` console entry point exists.
 - Development files are not leaked into the distribution.
@@ -1286,7 +1286,7 @@ measure durability and performance.
 | Safety | `suites/safety` | Are risky operations classified and guarded? |
 | Offline | `suites/offline` | Can local artifacts support offline workflows? |
 | Plugins | `suites/plugin_integration` | Do public plugins install and compose? |
-| Adoption | `suites/adoption` | Can an existing schema be handed to DBWarden? |
+| Adoption | `suites/adoption` | Can an existing schema be handed to dbwarden? |
 | SQL contracts | `suites/sql_contract` | Is generated output deterministic and approved? |
 | Performance | `suites/performance` | Does scale remain within the measured budget? |
 
@@ -1304,7 +1304,7 @@ PAGE: https://harness.dbwarden.org/suites/performance/
 
 # Performance Tests
 
-Performance tests measure the harness and DBWarden as a consumer workflow.
+Performance tests measure the harness and dbwarden as a consumer workflow.
 
 ## Measurements
 
@@ -1333,7 +1333,7 @@ DBWARDEN_HARNESS_RUN_500_MIGRATION=1 uv run pytest suites/performance/test_conve
 ```
 
 The benchmark is opt in because it is intentionally expensive. Results should
-be compared on the same Python, filesystem, DBWarden version, and machine
+be compared on the same Python, filesystem, dbwarden version, and machine
 class. The repository baseline is a reference measurement, not a universal SLA.
 
 ========================================================================
@@ -1363,7 +1363,7 @@ also verify command construction and explicit version pinning.
 ## Run
 
 The full plugin installation test is integration marked because it installs
-packages through the DBWarden CLI:
+packages through the dbwarden CLI:
 
 ```bash
 DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/plugin_integration
@@ -1439,7 +1439,7 @@ PAGE: https://harness.dbwarden.org/why-a-harness/
 
 # Why a Harness?
 
-DBWarden's own test suite is the right place for unit tests, internal
+dbwarden's own test suite is the right place for unit tests, internal
 regressions, SQL builder assertions, handler coverage, and tests that need
 implementation access. The harness exists because those tests cannot certify a
 published package as a consumer experiences it.
@@ -1471,13 +1471,13 @@ then inspects the resulting state through a backend-aware capture path.
 
 ## Backend support is a matrix
 
-DBWarden supports several database families with different semantics. A
+dbwarden supports several database families with different semantics. A
 passing PostgreSQL test does not certify MySQL. A passing MySQL test does not
 certify MariaDB. ClickHouse has a different table engine model, and SQLite is
 used for local development with its own behavior.
 
 The provider matrix separates lifecycle readiness from migration correctness.
-The first proves that a server is running. The second proves that DBWarden can
+The first proves that a server is running. The second proves that dbwarden can
 create, alter, inspect, and converge against it.
 
 ## Initial creation hides history problems
@@ -1513,7 +1513,7 @@ and reproduced.
 
 ## The boundary also protects the harness
 
-The harness must not become a second copy of DBWarden internals. Private imports
+The harness must not become a second copy of dbwarden internals. Private imports
 make tests coupled to implementation details and can create false confidence.
 The black-box boundary test rejects private module references. Public behavior,
 generated artifacts, and real database state are the contract.
@@ -1522,7 +1522,7 @@ generated artifacts, and real database state are the contract.
 
 A passing test provides evidence for a specific combination of:
 
-- DBWarden package version
+- dbwarden package version
 - Python version and platform
 - Plugin versions
 - Database image and server version

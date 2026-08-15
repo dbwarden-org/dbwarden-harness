@@ -1,13 +1,13 @@
 ---
-title: DBWarden Test Harness
-description: Black-box release validation for DBWarden, real database backends, and plugins.
+title: dbwarden Test Harness
+description: Black-box release validation for dbwarden, real database backends, and plugins.
 ---
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/dbwarden-org/dbwarden/refs/heads/main/assets/icon.png" alt="DBWarden" width="128"/>
+  <img src="https://raw.githubusercontent.com/dbwarden-org/dbwarden/refs/heads/main/assets/icon.png" alt="dbwarden" width="128"/>
 </p>
 <p align="center">
-  <strong style="font-size: 2.5em;">DBWarden Test Harness</strong>
+  <strong style="font-size: 2.5em;">dbwarden Test Harness</strong>
 </p>
 <p align="center">
     <em>Release confidence through real databases and public interfaces.</em>
@@ -32,15 +32,15 @@ description: Black-box release validation for DBWarden, real database backends, 
   &nbsp;|&nbsp;
   <strong><a href="https://github.com/dbwarden-org/dbwarden-harness">Source Code</a></strong>
   &nbsp;|&nbsp;
-  <strong><a href="https://github.com/dbwarden-org/dbwarden">DBWarden</a></strong>
+  <strong><a href="https://github.com/dbwarden-org/dbwarden">dbwarden</a></strong>
 </p>
 
-The DBWarden Test Harness is the release boundary between DBWarden development
-and DBWarden consumption.
+The dbwarden Test Harness is the release boundary between dbwarden development
+and dbwarden consumption.
 
-It installs DBWarden as an external package, invokes public commands, runs
+It installs dbwarden as an external package, invokes public commands, runs
 against real disposable databases, and checks the resulting state. The harness
-is intentionally separate from the DBWarden source repository because source
+is intentionally separate from the dbwarden source repository because source
 tests and consumer tests answer different questions.
 
 ## Start here

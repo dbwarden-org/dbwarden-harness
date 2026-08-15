@@ -5,7 +5,7 @@
   implementation details.
 
 **Consumer project**
-: A temporary project directory containing DBWarden configuration, model files,
+: A temporary project directory containing dbwarden configuration, model files,
   migrations, and database state.
 
 **Drift**

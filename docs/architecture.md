@@ -6,7 +6,7 @@ The harness is organized around a small number of consumer-facing abstractions.
 
 Tests invoke the installed `dbwarden` command through
 `harness/cli.py`. The runner captures output, return codes, timeouts, and the
-working directory. It does not import DBWarden implementation modules.
+working directory. It does not import dbwarden implementation modules.
 
 ## MigrationPlayer
 
@@ -56,6 +56,6 @@ directories and provider diagnostics when a provider fixture is available.
 
 ## Black-box enforcement
 
-`tests/test_black_box_boundary.py` scans harness source for private DBWarden
-imports. `harness/provenance.py` checks that installed DBWarden is not resolved
+`tests/test_black_box_boundary.py` scans harness source for private dbwarden
+imports. `harness/provenance.py` checks that installed dbwarden is not resolved
 from the harness or product source checkout.

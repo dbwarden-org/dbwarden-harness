@@ -8,7 +8,7 @@ from tools.migration_player import MigrationPlayer
 
 
 class SchemaRunner:
-    """Materialize a reference schema into a disposable DBWarden project."""
+    """Materialize a reference schema into a disposable dbwarden project."""
 
     def __init__(
         self,
@@ -84,7 +84,7 @@ class SchemaRunner:
         self.player.generate_models(*flags)
         generated = self.player.work_dir / output_dir / "models.py"
         if not generated.exists():
-            raise AssertionError(f"DBWarden did not generate the expected model artifact: {generated}")
+            raise AssertionError(f"dbwarden did not generate the expected model artifact: {generated}")
         return generated
 
     def round_trip(self, output_dir: str = "generated", *, tables: str | None = None) -> list[dict[str, object]]:

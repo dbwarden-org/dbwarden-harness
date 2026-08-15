@@ -1,6 +1,6 @@
 # Correctness
 
-The harness defines correctness as evidence that a published DBWarden package
+The harness defines correctness as evidence that a published dbwarden package
 can move a real database between intended schema states and describe the result
 accurately.
 

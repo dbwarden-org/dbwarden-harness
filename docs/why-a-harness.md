@@ -1,6 +1,6 @@
 # Why a Harness?
 
-DBWarden's own test suite is the right place for unit tests, internal
+dbwarden's own test suite is the right place for unit tests, internal
 regressions, SQL builder assertions, handler coverage, and tests that need
 implementation access. The harness exists because those tests cannot certify a
 published package as a consumer experiences it.
@@ -32,13 +32,13 @@ then inspects the resulting state through a backend-aware capture path.
 
 ## Backend support is a matrix
 
-DBWarden supports several database families with different semantics. A
+dbwarden supports several database families with different semantics. A
 passing PostgreSQL test does not certify MySQL. A passing MySQL test does not
 certify MariaDB. ClickHouse has a different table engine model, and SQLite is
 used for local development with its own behavior.
 
 The provider matrix separates lifecycle readiness from migration correctness.
-The first proves that a server is running. The second proves that DBWarden can
+The first proves that a server is running. The second proves that dbwarden can
 create, alter, inspect, and converge against it.
 
 ## Initial creation hides history problems
@@ -74,7 +74,7 @@ and reproduced.
 
 ## The boundary also protects the harness
 
-The harness must not become a second copy of DBWarden internals. Private imports
+The harness must not become a second copy of dbwarden internals. Private imports
 make tests coupled to implementation details and can create false confidence.
 The black-box boundary test rejects private module references. Public behavior,
 generated artifacts, and real database state are the contract.
@@ -83,7 +83,7 @@ generated artifacts, and real database state are the contract.
 
 A passing test provides evidence for a specific combination of:
 
-- DBWarden package version
+- dbwarden package version
 - Python version and platform
 - Plugin versions
 - Database image and server version

@@ -1,7 +1,7 @@
 # Writing Fixtures
 
 Reference schemas are the main way to add repeatable database behavior. A
-schema is data plus a model source file, not a test that knows DBWarden
+schema is data plus a model source file, not a test that knows dbwarden
 internals.
 
 ## ReferenceSchema contract
@@ -18,7 +18,7 @@ The registry discovers directories containing `models.py` and `schema.json`.
 
 ## Model source rules
 
-- Import only public DBWarden APIs.
+- Import only public dbwarden APIs.
 - Keep model source deterministic.
 - Use metadata types that represent the intended backend behavior.
 - Keep the fixture small enough to run across the version matrix.
