@@ -1,0 +1,9 @@
+services:
+  postgres:
+    profiles: [postgres]
+  mysql:
+    profiles: [mysql]
+  mariadb:
+    profiles: [mariadb]
+  clickhouse:
+    profiles: [clickhouse]

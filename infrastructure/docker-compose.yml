@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: harness
+      POSTGRES_PASSWORD: harness
+      POSTGRES_DB: harness
+    ports: ["5432:5432"]
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: harness
+      MYSQL_DATABASE: harness
+      MYSQL_USER: harness
+      MYSQL_PASSWORD: harness
+    ports: ["3306:3306"]
+  mariadb:
+    image: mariadb:11.4
+    environment:
+      MARIADB_ROOT_PASSWORD: harness
+      MARIADB_DATABASE: harness
+      MARIADB_USER: harness
+      MARIADB_PASSWORD: harness
+    ports: ["3307:3306"]
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    ports: ["8123:8123"]
