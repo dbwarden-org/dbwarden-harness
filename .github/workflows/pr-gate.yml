@@ -1,0 +1,37 @@
+name: Harness PR Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: latest
+      - name: Install locked environment
+        run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check .
+      - name: Unit and black-box smoke tests
+        run: uv run pytest -m 'not integration and not slow'
+
+  postgres-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: latest
+      - name: Install locked environment
+        run: uv sync --locked
+      - name: PostgreSQL round trip
+        env:
+          DBWARDEN_HARNESS_RUN_INTEGRATION: "1"
+        run: uv run pytest -m integration suites/round_trip/test_sqlite_black_box.py -k ecommerce -q
