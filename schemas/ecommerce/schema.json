@@ -1,0 +1,7 @@
+{
+  "name": "ecommerce",
+  "models": "models.py",
+  "backend": "postgresql",
+  "expected_tables": ["users", "orders", "order_items"],
+  "expected_indexes": ["ix_orders_user_id"]
+}
