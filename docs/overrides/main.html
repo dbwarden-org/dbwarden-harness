@@ -24,8 +24,8 @@
     document.body.classList.toggle('drawer-open', drawer.checked);
   });
   document.addEventListener('click', function(event) {
-    var link = event.target.closest('.md-sidebar--primary .md-nav__link');
-    if (link && drawer.checked) {
+    var pageLink = event.target.closest('.md-sidebar--primary a.md-nav__link[href]');
+    if (pageLink && drawer.checked) {
       drawer.checked = false;
       document.body.classList.remove('drawer-open');
     }
