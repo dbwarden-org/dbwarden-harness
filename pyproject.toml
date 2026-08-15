@@ -16,6 +16,8 @@ dev = [
     "pytest-timeout>=2.3",
     "pytest-xdist>=3.6",
     "ruff>=0.6",
+    "zensical>=0.0.44",
+    "seoslug>=2.1.0",
 ]
 
 [tool.pytest.ini_options]

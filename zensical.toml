@@ -1,0 +1,158 @@
+[project]
+site_name = "DBWarden Test Harness Documentation"
+site_description = "Black-box release validation for DBWarden, database backends, and plugins."
+site_url = "https://dbwarden-org.github.io/dbwarden-harness"
+docs_dir = "docs"
+site_dir = "site"
+
+copyright = "&copy; 2026 Emiliano Gandini Outeda"
+
+extra_css = ["stylesheets/extra.css"]
+
+[project.theme]
+variant = "modern"
+custom_dir = "docs/overrides"
+
+font.text = "Ubuntu"
+font.code = "JetBrains Mono"
+
+features = [
+    "navigation.instant",
+    "navigation.instant.prefetch",
+    "navigation.tabs",
+    "navigation.indexes",
+    "navigation.top",
+    "navigation.footer",
+    "search.suggest",
+    "search.highlight",
+    "content.code.copy",
+    "content.code.annotate",
+    "toc.follow",
+]
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/dbwarden-org/dbwarden-harness"
+name = "DBWarden Test Harness on GitHub"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/dbwarden-org/dbwarden"
+name = "DBWarden on GitHub"
+
+[[project.nav]]
+Overview = [
+  {Overview = "index.md"},
+  {"Why a Harness?" = "why-a-harness.md"},
+  {"Architecture" = "architecture.md"},
+]
+
+[[project.nav]]
+"Get Started" = [
+  {Setup = "getting-started/setup.md"},
+  {"Running Tests" = "getting-started/running-tests.md"},
+  {"Writing Fixtures" = "getting-started/writing-fixtures.md"},
+  {"Contributing" = "getting-started/contributing.md"},
+]
+
+[[project.nav]]
+Correctness = [
+  {Overview = "correctness/index.md"},
+  {"Convergence Model" = "correctness/convergence.md"},
+  {"Round Trips" = "correctness/round-trips.md"},
+  {"Semantic Drift" = "correctness/semantic-drift.md"},
+  {"Durability and Recovery" = "correctness/durability.md"},
+  {"Safety" = "correctness/safety.md"},
+  {"Offline Integrity" = "correctness/offline-integrity.md"},
+]
+
+[[project.nav]]
+"Test Suites" = [
+  {Overview = "suites/index.md"},
+  {"Distribution" = "suites/distribution.md"},
+  {"Round Trips" = "suites/round-trip.md"},
+  {"Plugins" = "suites/plugins.md"},
+  {"Adoption" = "suites/adoption.md"},
+  {"SQL Contracts" = "suites/sql-contracts.md"},
+  {"Performance" = "suites/performance.md"},
+]
+
+[[project.nav]]
+Databases = [
+  {Overview = "providers/index.md"},
+  {"Provider Lifecycle" = "providers/lifecycle.md"},
+  {"Version Matrix" = "providers/version-matrix.md"},
+  {"PostgreSQL, MySQL, and MariaDB" = "providers/relational.md"},
+  {ClickHouse = "providers/clickhouse.md"},
+  {SQLite = "providers/sqlite.md"},
+]
+
+[[project.nav]]
+Operations = [
+  {"Failure Artifacts" = "operations/artifacts.md"},
+  {"Release Provenance" = "operations/provenance.md"},
+  {CI = "operations/ci.md"},
+  {Troubleshooting = "operations/troubleshooting.md"},
+  {"Compatibility Findings" = "operations/compatibility.md"},
+]
+
+[[project.nav]]
+Reference = [
+  {"Environment Variables" = "reference/environment.md"},
+  {"Fixture Contract" = "reference/fixture-contract.md"},
+  {"Repository Layout" = "reference/layout.md"},
+  {Glossary = "reference/glossary.md"},
+]
+
+[project.markdown_extensions]
+"seoslug.contrib.zensical" = {
+  canonical_host = "dbwarden-org.github.io",
+  public_base_url = "https://dbwarden-org.github.io/dbwarden-harness/",
+  site_name = "DBWarden Test Harness Documentation",
+  title_template = "{title} - DBWarden Test Harness",
+  publisher_name = "Emiliano Gandini Outeda",
+  locale = "en_US",
+  auto_generate_schema = true,
+}
+
+[project.markdown_extensions.tables]
+
+[project.markdown_extensions.admonition]
+
+[project.markdown_extensions.toc]
+permalink = true
+
+[project.markdown_extensions.pymdownx.highlight]
+anchor_linenums = true
+line_spans = "__span"
+pygments_lang_class = true
+
+[project.markdown_extensions.pymdownx.inlinehilite]
+
+[project.markdown_extensions.pymdownx.snippets]
+
+[project.markdown_extensions.pymdownx.superfences]
+
+[project.markdown_extensions.pymdownx.tabbed]
+alternate_style = true
+
+[project.markdown_extensions.pymdownx.tasklist]
+custom_checkbox = true
+
+[project.markdown_extensions.attr_list]
+
+[project.markdown_extensions.md_in_html]

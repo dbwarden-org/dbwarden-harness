@@ -23,6 +23,8 @@
 </p>
 
 <p align="center">
+  <strong><a href="https://dbwarden-org.github.io/dbwarden-harness/">Documentation</a></strong>
+  &nbsp;|&nbsp;
   <strong><a href="https://github.com/dbwarden-org/dbwarden-harness">Source Code</a></strong>
   &nbsp;|&nbsp;
   <strong><a href="https://github.com/dbwarden-org/dbwarden">DBWarden</a></strong>

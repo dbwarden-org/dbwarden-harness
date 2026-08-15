@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% endblock %}
+
+{% block site_meta %}
+{% if page.meta and page.meta._seo_head %}
+{{ page.meta._seo_head | safe }}
+{% else %}
+{{ super() }}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+  var drawer = document.getElementById('__drawer');
+  if (!drawer) return;
+  drawer.addEventListener('change', function() {
+    document.body.classList.toggle('drawer-open', drawer.checked);
+  });
+  document.addEventListener('click', function(event) {
+    var link = event.target.closest('.md-sidebar--primary .md-nav__link');
+    if (link && drawer.checked) {
+      drawer.checked = false;
+      document.body.classList.remove('drawer-open');
+    }
+  });
+})();
+</script>
+{% endblock %}
