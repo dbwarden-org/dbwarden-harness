@@ -1,0 +1,1 @@
+"""Offline generation suites."""
