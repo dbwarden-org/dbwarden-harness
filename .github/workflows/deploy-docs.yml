@@ -30,7 +30,10 @@ jobs:
         with:
           version: latest
       - run: uv sync --locked
+      - run: uv run python scripts/generate_llms_full.py
       - run: uv run zensical build --clean
+      - run: cp docs/llms.txt site/llms.txt
+      - run: cp docs/llms-full.txt site/llms-full.txt
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site

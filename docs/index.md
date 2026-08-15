@@ -68,3 +68,5 @@ The source repository is available at
 
 The product being tested is documented at
 [dbwarden-org/dbwarden](https://github.com/dbwarden-org/dbwarden).
+
+For machine-readable documentation, use

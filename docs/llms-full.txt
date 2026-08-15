@@ -1,0 +1,1535 @@
+# DBWarden Test Harness Documentation
+> Full documentation for black-box DBWarden release validation
+> Source: https://dbwarden-org.github.io/dbwarden-harness
+> Pages: 39
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/README/
+========================================================================
+
+# Documentation Source
+
+This directory is the source for the Zensical documentation site. The site
+configuration and navigation live in `zensical.toml` at the repository root.
+
+Build locally with:
+
+```bash
+uv run zensical build --clean
+```
+
+Start with `index.md`, then use the navigation groups for setup, correctness,
+test suites, providers, operations, and reference material.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/architecture/
+========================================================================
+
+# Architecture
+
+The harness is organized around a small number of consumer-facing abstractions.
+
+## Test process
+
+Tests invoke the installed `dbwarden` command through
+`harness/cli.py`. The runner captures output, return codes, timeouts, and the
+working directory. It does not import DBWarden implementation modules.
+
+## MigrationPlayer
+
+`tools/migration_player.py` owns the public CLI workflow for a temporary
+consumer project. It can initialize a project, write model source, configure a
+database, create migrations, migrate, roll back, inspect status, generate
+models, export models, inspect impact, and parse JSON diff output.
+
+The player deliberately works with files and subprocesses. This ensures that
+the test follows the same boundary as an application repository.
+
+## SchemaRunner
+
+`tools/schema_runner.py` combines a `ReferenceSchema` with a
+`MigrationPlayer`. It prepares model source, configures the database, applies a
+baseline, captures state, and runs reverse-engineering flows.
+
+## DatabaseProvider
+
+`infrastructure/providers/base.py` defines the lifecycle contract:
+
+- `start` starts the provider and returns a URL.
+- `stop` disposes the provider.
+- `reset` removes user objects while keeping the provider available.
+- `version` reports the declared server version.
+- `diagnostics` returns safe metadata for artifacts.
+- `logs` returns provider logs when available.
+
+Docker providers implement readiness polling against the database engine, not
+only the published port.
+
+## DriftChecker
+
+`tools/drift_checker.py` captures a semantic `SchemaSnapshot`. SQLAlchemy
+inspection is used for relational databases. ClickHouse uses its public client
+and system tables because its HTTP URL is not a generic SQLAlchemy URL.
+
+The snapshot model compares tables, views, columns, constraints, indexes, and
+backend table options. The comparison reports a `DriftItem` with a category,
+object name, expected value, and actual value.
+
+## ArtifactCollector
+
+`tools/artifacts.py` writes command output, metadata, generated files, runtime
+information, and provenance. The pytest failure hook also copies temporary work
+directories and provider diagnostics when a provider fixture is available.
+
+## Black-box enforcement
+
+`tests/test_black_box_boundary.py` scans harness source for private DBWarden
+imports. `harness/provenance.py` checks that installed DBWarden is not resolved
+from the harness or product source checkout.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/convergence/
+========================================================================
+
+# Convergence Model
+
+Convergence means that the model declaration, migration history, live database,
+and generated model representation agree at the tested semantic level.
+
+## The four states
+
+### Reference state
+
+The reference model fixture is the intended application schema. It is copied
+into a temporary consumer project and loaded through the public configuration
+path.
+
+### Migration state
+
+`make-migrations` creates versioned SQL files. The harness checks that the
+files exist, can be applied, and remain associated with migration history.
+
+### Live state
+
+`DriftChecker` captures tables, columns, constraints, indexes, views, and
+backend options from the real database.
+
+### Reverse-engineered state
+
+`generate-models` produces a consumer model artifact. The harness can configure
+the project to use that artifact and run a public diff.
+
+## Why semantic comparison
+
+Raw SQL differs between server versions and dialects even when the schema is
+equivalent. The checker compares normalized semantic fields rather than
+requiring identical SQL text for every backend.
+
+SQL snapshots still exist for deterministic contract checks. Semantic snapshots
+answer whether the database is correct. SQL snapshots answer whether generated
+output changed unexpectedly.
+
+## What is not normalized away
+
+Backend-specific behavior is not discarded. ClickHouse engine and sorting key
+metadata is compared explicitly. Foreign keys, unique constraints, defaults,
+and indexes remain visible in relational snapshots.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/durability/
+========================================================================
+
+# Durability and Recovery
+
+Migration durability is about behavior after history becomes nontrivial or
+execution becomes imperfect.
+
+## Covered scenarios
+
+- A 50 migration SQLite chain
+- Applying and rolling back a subset
+- Reapplying previously rolled back migrations
+- Detecting deleted applied migration files
+- Staged relational schema changes
+- ClickHouse column evolution
+- Repairing a failed SQLite migration and rerunning it
+- Resetting real providers after applied objects exist
+
+## Why failure tests matter
+
+Relational databases can execute DDL under different transactional rules.
+MySQL, MariaDB, and ClickHouse can leave different partial states than
+PostgreSQL or SQLite. A migration runner must report the failure accurately and
+leave a state that can be diagnosed and repaired.
+
+## Current boundary
+
+The current recovery test covers repair and replay on SQLite. Provider-backed
+evolution and reset tests cover real database state. Process termination,
+concurrent lock contention, and partial failure injection remain separate
+areas for future provider-specific suites.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/
+========================================================================
+
+# Correctness
+
+The harness defines correctness as evidence that a published DBWarden package
+can move a real database between intended schema states and describe the result
+accurately.
+
+Correctness is layered:
+
+1. The package installs and exposes the public CLI.
+2. The provider starts and reports the expected server version.
+3. The migration file is generated and has the expected artifacts.
+4. The database accepts and applies the SQL.
+5. The resulting state matches the reference schema.
+6. Reverse-engineered models can be loaded by a consumer project.
+7. Public diff reports no remaining operations.
+8. Rollback and reapplication preserve the expected history.
+
+A command exit code is therefore only one assertion in a passing test.
+
+## Correctness documents
+
+- [Convergence Model](convergence.md)
+- [Round Trips](round-trips.md)
+- [Semantic Drift](semantic-drift.md)
+- [Durability and Recovery](durability.md)
+- [Safety](safety.md)
+- [Offline Integrity](offline-integrity.md)
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/offline-integrity/
+========================================================================
+
+# Offline Integrity
+
+Offline checks validate artifacts that DBWarden uses without a live database.
+
+## State manifests
+
+`tools/offline_integrity.py` finds model-state JSON files, calculates SHA-256
+digests, writes a sorted manifest, and verifies that actual files match the
+recorded values.
+
+## Covered behavior
+
+- A state manifest can be generated.
+- Unchanged state verifies successfully.
+- Changed state reports the affected paths.
+- Missing state is reported as an assertion failure.
+- Manifest files are excluded from their own input set.
+
+## Why this matters
+
+Offline generation depends on files that may be committed, cached, or moved
+between jobs. A stale state file can make a migration appear deterministic
+while using a different input. Checksums make the dependency visible.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/round-trips/
+========================================================================
+
+# Round Trips
+
+Round-trip tests validate the complete consumer path instead of a single
+operation.
+
+## Baseline round trip
+
+The latest backend suite:
+
+1. Starts a provider.
+2. Initializes a temporary project.
+3. Writes the reference schema models.
+4. Generates and applies the initial migration.
+5. Captures expected tables and indexes.
+6. Captures backend semantic metadata.
+
+The suite covers PostgreSQL, MySQL, MariaDB, and ClickHouse. SQLite has a
+separate public CLI and reference schema suite.
+
+## Generate-models round trip
+
+The reverse-engineering suite:
+
+1. Applies the reference schema to a real provider.
+2. Runs `generate-models`.
+3. Verifies that the generated file contains the application tables.
+4. Excludes DBWarden-owned bookkeeping tables from application model input.
+5. Enables ClickHouse engine metadata where appropriate.
+6. Reloads the generated file through DBWarden.
+7. Runs public diff and requires convergence.
+
+The test also exercises SQLite table filtering. MariaDB has a strict XFAIL for
+the known release table-ordering issue, so a future fixed release produces an
+unexpected pass and requires a deliberate review.
+
+## Evolution round trip
+
+The evolution suite creates a table, adds a column, rolls the change back, and
+reapplies it. ClickHouse uses an explicit MergeTree table and checks that engine
+metadata remains present while columns change.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/safety/
+========================================================================
+
+# Safety
+
+Safety tests verify that DBWarden distinguishes harmless changes from changes
+that can destroy data or invalidate an application.
+
+## Current checks
+
+- Invalid CLI commands return failure instead of synthetic success.
+- Stateful commands fail clearly without consumer configuration.
+- Non-destructive schema creation is reported as informational.
+- Destructive table removal is blocked without force confirmation.
+- The same destructive operation can proceed with explicit force.
+
+## Test boundary
+
+Safety tests use temporary SQLite projects for deterministic command behavior.
+Destructive operations are not run against shared or persistent databases.
+
+## Adding a safety case
+
+Add a case when a new operation has a meaningful risk classification. Assert the
+blocked invocation, the required confirmation text, the forced invocation, and
+the resulting database state where execution is safe.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/correctness/semantic-drift/
+========================================================================
+
+# Semantic Drift
+
+`tools/drift_checker.py` provides the harness's backend-aware state comparison.
+
+## Portable fields
+
+- Table names
+- View names
+- Column names
+- Column types
+- Nullability
+- Defaults
+- Index names
+- Primary key columns
+- Foreign key relationships
+- Unique constraint names
+
+## Backend options
+
+The snapshot also stores table options. ClickHouse capture reads `system.tables`
+and records engine, sorting key, partition key, and primary key values.
+
+## Drift output
+
+Each difference is represented as a `DriftItem` containing:
+
+- `kind`: the semantic category
+- `object_name`: affected table or global object
+- `expected`: expected snapshot value
+- `actual`: observed snapshot value
+
+This structure is used by tests and can be serialized by higher-level reports.
+
+## Limits
+
+Inspection capabilities differ by SQLAlchemy dialect. The harness does not
+pretend that a backend-neutral inspector sees every backend-native object.
+When a backend needs a native path, the provider-specific capture code is
+explicit and tested separately.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/coverage-matrix/
+========================================================================
+
+# Harness Coverage Matrix
+
+The matrix separates provider lifecycle coverage from actual DBWarden migration
+coverage. A provider being ready is not evidence that migrations converge.
+
+| Area | SQLite | PostgreSQL | MySQL | MariaDB | ClickHouse |
+|---|---:|---:|---:|---:|---:|
+| Provider lifecycle | yes | yes | yes | yes | yes |
+| Initial migration round trip | yes | yes | yes | release-blocked on `0.16.5` | yes |
+| Version round trip | local | scheduled | experimental on `0.16.5` | experimental on `0.16.5` | scheduled |
+| Structural drift capture | yes | yes | yes | yes | yes |
+| Backend table metadata | limited | dialect-dependent | dialect-dependent | dialect-dependent | engine/order/partition keys |
+| Staged upgrade/reapply | yes | planned | planned | planned | planned |
+| Rollback execution | yes | planned | planned | planned | planned |
+| Failure recovery | partial | planned | planned | planned | planned |
+
+## Release Findings
+
+The current PyPI `dbwarden==0.16.5` release fails the MariaDB ecommerce round
+trip because its generated migration creates a child table before its parent
+tables. The harness intentionally keeps this test strict. The current core
+checkout contains the table-ordering fix and should be promoted before marking
+that cell passing.
+
+## Execution Tiers
+
+- PR: non-integration checks and one PostgreSQL smoke round trip.
+- Nightly: all declared backend versions and staged migration suites.
+- Release: clean wheel installation, required plugins, all provider versions,
+  rollback/recovery, and retained failure artifacts.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/getting-started/contributing/
+========================================================================
+
+# Contributing
+
+## Before changing code
+
+Run the fast checks and inspect the current compatibility notes:
+
+```bash
+uv run ruff check .
+uv run pytest -m "not integration and not slow"
+```
+
+Read `docs/known-compatibility.md` before changing an experimental test. A
+known release defect should be made more visible and better diagnosed, not
+converted into an unconditional skip.
+
+## Test placement
+
+- `tests`: harness unit and contract tests
+- `suites/round_trip`: real schema and backend behavior
+- `suites/durability`: history, rollback, and recovery
+- `suites/safety`: destructive operation controls
+- `suites/offline`: state that does not require a live provider
+- `suites/distribution`: installed package behavior
+- `suites/plugin_integration`: public plugin behavior
+- `suites/adoption`: existing schema handoff behavior
+- `suites/sql_contract`: deterministic SQL and snapshots
+- `suites/performance`: opt in measurement suites
+
+## Commit and review expectations
+
+Keep changes focused. A test description should explain what a user would
+experience and why the source repository cannot already prove it. Integration
+tests must use real providers and the public DBWarden CLI.
+
+Do not add private DBWarden imports, mocks that replace database connections,
+or broad warning suppression. If a behavior is unsupported, document the
+limitation and make its test state explicit.
+
+## Documentation
+
+Build the documentation locally before changing navigation or configuration:
+
+```bash
+uv run zensical build --clean
+```
+
+The navigation is defined in `zensical.toml`. Every path in the navigation must
+exist under `docs`.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/getting-started/running-tests/
+========================================================================
+
+# Running Tests
+
+## Fast checks
+
+Run these checks before changing integration code:
+
+```bash
+uv run ruff check .
+uv run pytest -m "not integration and not slow"
+```
+
+The suite includes harness unit tests, distribution checks, schema registry
+checks, artifact tests, parser tests, offline checks, and non-container
+durability baselines.
+
+## All non-container tests
+
+```bash
+uv run pytest tests suites -m "not integration"
+```
+
+The performance benchmark test is small by default. The 500 migration and
+scale tests require their explicit environment variables.
+
+## Integration tests
+
+```bash
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration
+```
+
+Run one suite while developing:
+
+```bash
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -q suites/round_trip/test_generate_models_integration.py
+```
+
+Use `-k` to select a backend. The backend matrix uses this same mechanism to
+avoid starting unrelated containers in each job:
+
+```bash
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_trip -k clickhouse
+```
+
+## Select provider versions
+
+The provider lifecycle suite supports `DBWARDEN_HARNESS_BACKEND` and
+`DBWARDEN_HARNESS_VERSIONS`:
+
+```bash
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 \
+DBWARDEN_HARNESS_BACKEND=postgres \
+DBWARDEN_HARNESS_VERSIONS=14,17 \
+uv run pytest -m integration suites/round_trip/test_providers.py
+```
+
+## Slow suites
+
+```bash
+DBWARDEN_HARNESS_RUN_SCALE=1 uv run pytest -m slow suites/performance
+```
+
+The 500 migration benchmark is opt in:
+
+```bash
+DBWARDEN_HARNESS_RUN_500_MIGRATION=1 uv run pytest suites/performance/test_convergence_500.py -s
+```
+
+## Artifacts
+
+```bash
+DBWARDEN_HARNESS_ARTIFACT_DIR=artifacts \
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 \
+uv run pytest -m integration suites/round_trip
+```
+
+On failure, the artifact directory contains command output, temporary project
+files, generated migrations, model state, provenance, and provider logs when
+the provider is available to the pytest hook.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/getting-started/setup/
+========================================================================
+
+# Setup
+
+## Requirements
+
+- Python 3.12.7 or newer
+- `uv`
+- Docker for integration suites
+- Network access to PyPI for a clean dependency resolution
+- A Docker daemon with enough memory for database containers
+
+The fast suite does not require Docker. Provider tests are marked
+`integration` and skipped unless explicitly enabled.
+
+## Install the locked environment
+
+From the repository root:
+
+```bash
+uv venv
+uv sync --locked
+```
+
+The lockfile includes DBWarden database extras, Testcontainers, pytest, Ruff,
+benchmark tooling, Zensical, and the SEO extension used by the documentation.
+
+## Confirm the consumer package
+
+```bash
+uv run dbwarden version
+uv run pytest -q tests/test_distribution.py
+```
+
+The distribution tests verify that DBWarden is installed, exposes its expected
+package files, has a console entry point, and does not resolve from a source
+checkout.
+
+## Confirm Docker
+
+```bash
+docker info
+```
+
+The harness providers use Testcontainers directly. The compose files under
+`infrastructure` are available for local service inspection, but the pytest
+providers own their container lifecycle.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/getting-started/writing-fixtures/
+========================================================================
+
+# Writing Fixtures
+
+Reference schemas are the main way to add repeatable database behavior. A
+schema is data plus a model source file, not a test that knows DBWarden
+internals.
+
+## ReferenceSchema contract
+
+`schemas/base.py` defines:
+
+- `name`: stable schema name used in database configuration
+- `models_py`: model source path
+- `expected_tables`: tables required after migration
+- `expected_indexes`: indexes required after migration
+- `backend`: default backend family
+
+The registry discovers directories containing `models.py` and `schema.json`.
+
+## Model source rules
+
+- Import only public DBWarden APIs.
+- Keep model source deterministic.
+- Use metadata types that represent the intended backend behavior.
+- Keep the fixture small enough to run across the version matrix.
+- Put backend-specific declarations in the model metadata, not in the test.
+- Add expected tables and indexes to the schema manifest.
+
+## Integration test rules
+
+An integration test should:
+
+1. Obtain a provider from `provider_for`.
+2. Start it inside a `try` and stop it in `finally`.
+3. Use `MigrationPlayer` and `SchemaRunner` for public CLI flows.
+4. Capture semantic state after applying changes.
+5. Assert a user-visible property, not a private function call.
+6. Leave enough output for a failed run to be investigated.
+
+## New provider behavior
+
+Add a provider only when it can implement startup, readiness, reset, version,
+diagnostics, and teardown. Add lifecycle tests before adding migration tests.
+That prevents an unavailable container from appearing as a migration defect.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/
+========================================================================
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dbwarden-org/dbwarden/refs/heads/main/assets/icon.png" alt="DBWarden" width="128"/>
+</p>
+<p align="center">
+  <strong style="font-size: 2.5em;">DBWarden Test Harness</strong>
+</p>
+<p align="center">
+    <em>Release confidence through real databases and public interfaces.</em>
+</p>
+<p align="center">
+  <a href="https://www.python.org/downloads/">
+    <img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white&style=for-the-badge" alt="Python">
+  </a>
+  <a href="https://github.com/dbwarden-org/dbwarden-harness/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/dbwarden-org/dbwarden-harness/.github/workflows/pr-gate.yml?branch=main&label=CI&logo=github&style=for-the-badge" alt="CI">
+  </a>
+  <a href="https://github.com/dbwarden-org/dbwarden-harness">
+    <img src="https://img.shields.io/badge/Testing-Black--box-10AC84?style=for-the-badge" alt="Black box testing">
+  </a>
+  <a href="https://www.docker.com/">
+    <img src="https://img.shields.io/badge/Docker-Testcontainers-2496ED?logo=docker&logoColor=white&style=for-the-badge" alt="Docker Testcontainers">
+  </a>
+</p>
+
+<p align="center">
+  <strong><a href="https://dbwarden-org.github.io/dbwarden-harness/">Documentation</a></strong>
+  &nbsp;|&nbsp;
+  <strong><a href="https://github.com/dbwarden-org/dbwarden-harness">Source Code</a></strong>
+  &nbsp;|&nbsp;
+  <strong><a href="https://github.com/dbwarden-org/dbwarden">DBWarden</a></strong>
+</p>
+
+The DBWarden Test Harness is the release boundary between DBWarden development
+and DBWarden consumption.
+
+It installs DBWarden as an external package, invokes public commands, runs
+against real disposable databases, and checks the resulting state. The harness
+is intentionally separate from the DBWarden source repository because source
+tests and consumer tests answer different questions.
+
+## Start here
+
+- Read [Why a Harness?](why-a-harness.md) for the design rationale.
+- Follow [Setup](getting-started/setup.md) to install the locked environment.
+- Use [Running Tests](getting-started/running-tests.md) for local and CI commands.
+- Read [Correctness](correctness/index.md) to understand what a passing test means.
+- Check [Compatibility Findings](operations/compatibility.md) before interpreting an experimental failure.
+
+## What is validated
+
+The harness validates distribution installation, public CLI behavior, migration
+application, rollback, reverse engineering, semantic convergence, provider
+isolation, plugin discovery, adoption flows, offline state, and performance.
+
+The primary unit of confidence is not a generated SQL string. It is a complete
+consumer flow that produces the expected live database state and can explain
+why it passed or failed.
+
+## Repository
+
+The source repository is available at
+[dbwarden-org/dbwarden-harness](https://github.com/dbwarden-org/dbwarden-harness).
+
+The product being tested is documented at
+[dbwarden-org/dbwarden](https://github.com/dbwarden-org/dbwarden).
+
+For machine-readable documentation, use
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/known-compatibility/
+========================================================================
+
+# Known Compatibility Findings
+
+The integration suite is intentionally strict. These findings are not marked
+as passing or silently skipped when the affected test is selected.
+
+## DBWarden `0.16.5`
+
+- PostgreSQL ecommerce migrations require `IndexSpec` metadata. SQLAlchemy-only
+  `Index` declarations are not emitted by the release; the reference schemas
+  use the public DBWarden metadata form.
+- PyPI `0.16.5` MariaDB migration generation orders `order_items` before its
+  referenced `orders` table, producing a foreign-key creation error. The core
+  checkout now topologically orders newly created tables; this is fixed for the
+  next release.
+- PyPI `0.16.5` MySQL reverse-engineering can report an incomplete `varchar`
+  type without a length during final diff, so the full-version MySQL round-trip
+  remains an experimental compatibility cell until the release is corrected.
+- PyPI `0.16.5` does not recognize the `clickhouse://` URL scheme when
+  converting to the `clickhousedb` SQLAlchemy dialect, corrupting credentials.
+  The core checkout now parses that scheme correctly; this is fixed for the
+  next release.
+- PyPI `0.16.5` reverse-engineered SQLite models report an informational
+  autoincrement drift. The core checkout now treats implicit integer primary
+  keys as equivalent; this is fixed for the next release.
+
+Reproduce backend findings with:
+
+```bash
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest suites/round_trip/test_backend_round_trip.py -q
+```
+
+The provider lifecycle matrix is independent of these DBWarden release
+findings and passes all 14 declared backend/version cases.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/operations/artifacts/
+========================================================================
+
+# Failure Artifacts
+
+Set `DBWARDEN_HARNESS_ARTIFACT_DIR` before a run to retain evidence for failed
+tests.
+
+```bash
+DBWARDEN_HARNESS_ARTIFACT_DIR=artifacts uv run pytest -q
+```
+
+## Bundle contents
+
+`ArtifactCollector` writes:
+
+- `stdout.txt`
+- `stderr.txt`
+- `command.json`
+- `provenance.json`
+- copied migrations
+- copied `.dbwarden` state
+- copied paths supplied by a test
+
+When a provider object is available to the pytest failure hook, the bundle also
+contains `provider.json` and `provider.log`.
+
+## Metadata
+
+`command.json` records command arguments, return code, working directory,
+runtime information, and harness environment variables. `provenance.json`
+records installed distribution locations, versions, Python information, and
+the harness lockfile digest.
+
+## CI retention
+
+The backend matrix uploads the artifact directory when a provider job fails.
+Download the artifact before rerunning if the failure may depend on container
+logs or generated files.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/operations/ci/
+========================================================================
+
+# CI
+
+The harness separates confidence from cost.
+
+## Pull request gate
+
+`.github/workflows/pr-gate.yml` runs locked installation, Ruff, non-integration
+smoke tests, and a PostgreSQL smoke round trip.
+
+## Backend matrix
+
+`.github/workflows/matrix.yml` runs on schedule or manual dispatch. Its matrix
+selects one backend per job and passes the backend selection into pytest. This
+prevents a MySQL job from silently running ClickHouse or PostgreSQL work.
+
+PostgreSQL and ClickHouse cells are strict. MySQL and MariaDB experimental
+cells are allowed to expose known PyPI 0.16.5 failures, while preserving their
+logs and artifacts.
+
+## Plugin workflow
+
+`.github/workflows/plugins.yml` installs and exercises the public plugin path.
+
+## Distribution workflow
+
+`.github/workflows/distribution.yml` runs package inspection and CLI contract
+tests in a clean locked environment.
+
+## Performance workflow
+
+`.github/workflows/performance.yml` runs opt in scale and 500 migration suites.
+It stores benchmark JSON as an artifact.
+
+## Local reproduction
+
+Use the exact command shown in the failed workflow step, then set
+`DBWARDEN_HARNESS_ARTIFACT_DIR=artifacts` to retain local evidence.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/operations/compatibility/
+========================================================================
+
+# Compatibility Findings
+
+The harness is strict about observed behavior and explicit about release
+limitations.
+
+## PyPI 0.16.5
+
+- MariaDB migration generation can create a foreign-key child table before its
+  referenced parent table.
+- MySQL reverse engineering can report an incomplete `varchar` type during a
+  full-version final diff.
+- Default reverse engineering can include DBWarden bookkeeping tables in the
+  generated model file.
+
+The harness excludes DBWarden-owned tables for the supported application model
+round trip. The MariaDB generate-models case remains a strict XFAIL, and the
+MySQL and MariaDB full-version cells are experimental in CI.
+
+## Reading experimental results
+
+An experimental failure is still a test result. It is allowed to avoid making
+the overall scheduled workflow red while the package defect is known. It must
+remain visible in logs, artifacts, and this document. When a new DBWarden
+release is available, rerun the cell. A strict unexpected pass also requires
+review so the compatibility policy can be updated deliberately.
+
+## Reproduction
+
+```bash
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_trip -k mariadb
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_trip -k mysql
+```
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/operations/provenance/
+========================================================================
+
+# Release Provenance
+
+Release provenance makes a harness result attributable.
+
+`harness/provenance.py` records:
+
+- Python version
+- Python implementation
+- Platform string
+- DBWarden distribution version
+- DBWarden installation location
+- Console entry points
+- Optional plugin distribution versions and locations
+- Lockfile path and SHA-256 digest
+
+The distribution isolation test rejects a DBWarden location inside the source
+checkout supplied to the assertion. The black-box boundary test rejects private
+DBWarden imports in harness source.
+
+## Why this is required
+
+Without provenance, a passing integration test can be attributed to the wrong
+wheel, a local editable install, or an accidental dependency upgrade. With it,
+the same command can be rerun against the same release environment.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/operations/troubleshooting/
+========================================================================
+
+# Troubleshooting
+
+## Integration tests are skipped
+
+Set the integration switch:
+
+```bash
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration
+```
+
+Then confirm Docker is available with `docker info`.
+
+## Provider readiness times out
+
+Check Docker resource limits, image download progress, and the provider image
+version. Run the provider lifecycle test with artifacts enabled. The provider
+waits for a real database query, so a slow first boot can exceed the default
+readiness window.
+
+## A diff reports an SQLAlchemy dialect error
+
+Confirm that the provider URL and database type agree. ClickHouse uses its
+native HTTP client for drift capture. Relational providers use SQLAlchemy
+drivers supplied by the harness extras.
+
+## A migration fails with a foreign key error
+
+Inspect the generated migration in the artifact bundle. Check table creation
+order and compare the failure with `docs/known-compatibility.md`. Do not change
+the fixture to hide a real release defect.
+
+## Generated models fail to reload
+
+Inspect `generated/models.py` and `provenance.json`. Confirm that DBWarden-owned
+tables were excluded from application model input and that the generated file
+uses only public installed APIs.
+
+## Tests pass locally but fail in CI
+
+Compare Python version, DBWarden version, provider image, lockfile digest, and
+Docker architecture from the artifact bundle. The harness deliberately records
+these values because release and environment differences are common causes.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/providers/clickhouse/
+========================================================================
+
+# ClickHouse
+
+ClickHouse uses the native `clickhouse_connect` client for readiness, reset,
+and semantic capture. Provider URLs use the HTTP protocol and DBWarden is
+configured with the ClickHouse database type.
+
+## Analytics fixture
+
+The analytics schema uses a MergeTree engine and an explicit sorting key. The
+round-trip suite checks that the engine and sorting key survive migration and
+reverse engineering.
+
+## Native metadata
+
+Generic SQLAlchemy inspection is not sufficient for ClickHouse. The drift
+checker queries system tables for engine, sorting key, partition key, and
+primary key values. This preserves the metadata that determines ClickHouse
+storage and query behavior.
+
+## Run
+
+```bash
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_trip -k clickhouse
+```
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/providers/
+========================================================================
+
+# Database Providers
+
+Providers give integration tests real, disposable database instances. They
+are deliberately separate from the migration assertions so startup failures,
+server readiness failures, and DBWarden failures can be distinguished.
+
+## Declared versions
+
+| Backend | Versions |
+| --- | --- |
+| PostgreSQL | 14, 15, 16, 17 |
+| MySQL | 8.0, 8.4 |
+| MariaDB | 10.11, 11.4 |
+| ClickHouse | 24.3, 26.6 |
+| SQLite | Local file |
+
+See [Provider Lifecycle](lifecycle.md) for startup guarantees and
+[Version Matrix](version-matrix.md) for selection behavior.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/providers/lifecycle/
+========================================================================
+
+# Provider Lifecycle
+
+Every provider follows `DatabaseProvider`:
+
+1. Construct the provider with an image or local database path.
+2. Start the provider.
+3. Poll until the database accepts a real connection or query.
+4. Return a consumer connection URL.
+5. Reset user objects between scenarios when requested.
+6. Collect diagnostics and logs on failure.
+7. Stop and dispose the provider in `finally`.
+
+## Why readiness is more than a port
+
+A published Docker port can accept TCP connections while the database is still
+initializing users, schemas, or system tables. `DockerDatabaseProvider` polls
+the engine through SQLAlchemy. ClickHouse uses its native client because its
+HTTP protocol is not represented by a generic SQLAlchemy URL.
+
+## Isolation
+
+Reset tests create a probe table, reset the provider, and verify that the table
+is gone. This prevents one scenario from making a later scenario pass or fail
+because of leftover state.
+
+## Run lifecycle tests
+
+```bash
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_trip/test_providers.py
+```
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/providers/relational/
+========================================================================
+
+# PostgreSQL, MySQL, and MariaDB
+
+The relational providers use Testcontainers and SQLAlchemy drivers installed by
+the harness dependency groups.
+
+## Shared coverage
+
+The ecommerce schema checks users, orders, and order items. Integration tests
+validate table creation, foreign key relationships, unique constraints,
+indexes, staged column changes, rollback, reapply, reset, and reverse
+engineering.
+
+## PostgreSQL
+
+PostgreSQL is the strict PR smoke provider and the primary relational reference
+for release checks. Its tests use the PostgreSQL URL and database inspector.
+
+## MySQL
+
+MySQL uses the PyMySQL driver and its own provider URL. It has an experimental
+full-version diff cell for a known released-package reverse-engineering type
+issue. Initial migration, evolution, semantic constraints, and generated model
+coverage remain executable.
+
+## MariaDB
+
+MariaDB uses a separate image, port, and provider class even though it shares
+the PyMySQL driver family. The distinction matters because foreign key and DDL
+behavior differs from MySQL. The current PyPI release has an explicit table
+ordering XFAIL in generate-models coverage and an experimental matrix cell.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/providers/sqlite/
+========================================================================
+
+# SQLite
+
+SQLite is the fast local provider. It uses a temporary file and does not require
+Docker. SQLite tests validate public CLI behavior, offline flows, long chains,
+baseline handling, table filtering, and repair after failed migrations.
+
+SQLite is not a substitute for server-backed tests. It cannot certify
+PostgreSQL, MySQL, MariaDB, or ClickHouse SQL. Its value is deterministic local
+coverage for workflows that do not need a server-specific feature.
+
+## Run
+
+```bash
+uv run pytest -q suites/round_trip/test_sqlite_black_box.py
+uv run pytest -q suites/durability/test_sqlite_chain.py
+uv run pytest -q suites/offline/test_sqlite_offline.py
+```
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/providers/version-matrix/
+========================================================================
+
+# Version Matrix
+
+`harness/matrix.py` declares supported Python and database versions. The
+provider matrix test checks that each declared provider starts, reports its
+expected version, and resets successfully. The version round-trip suite adds
+migration behavior for every declared database version.
+
+## Select cases locally
+
+```bash
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 \
+DBWARDEN_HARNESS_BACKEND=postgres \
+DBWARDEN_HARNESS_VERSIONS=14,17 \
+uv run pytest -m integration suites/round_trip/test_providers.py
+```
+
+## CI behavior
+
+The scheduled matrix workflow runs backend-specific jobs. PostgreSQL and
+ClickHouse are currently strict. MySQL and MariaDB have experimental cells for
+known PyPI 0.16.5 compatibility findings. Their tests run and upload artifacts;
+they are not silently omitted.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/reference/environment/
+========================================================================
+
+# Environment Variables
+
+| Variable | Effect |
+| --- | --- |
+| `DBWARDEN_HARNESS_RUN_INTEGRATION` | Enables Docker and provider tests when set to `1`. |
+| `DBWARDEN_HARNESS_RUN_SCALE` | Enables scale benchmarks when set to `1`. |
+| `DBWARDEN_HARNESS_RUN_500_MIGRATION` | Enables the expensive 500 migration benchmark when set to `1`. |
+| `DBWARDEN_HARNESS_DEFER_EXECUTABLE` | Points benchmark comparison at a DBWarden checkout executable. |
+| `DBWARDEN_HARNESS_DEFER_SNAPSHOTS` | Enables deferred snapshot mode in benchmark helpers. |
+| `DBWARDEN_HARNESS_BACKEND` | Limits provider matrix lifecycle cases to one backend. |
+| `DBWARDEN_HARNESS_VERSIONS` | Limits provider matrix lifecycle cases to listed versions. |
+| `DBWARDEN_HARNESS_ARTIFACT_DIR` | Writes failed test artifacts to the selected directory. |
+
+Variables beginning with `DBWARDEN_HARNESS_` are included in command artifact
+metadata so a run can be reproduced.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/reference/fixture-contract/
+========================================================================
+
+# Fixture Contract
+
+## Reference schema
+
+A reference schema directory contains:
+
+- `models.py`
+- `schema.json`
+- `README.md`
+
+The registry converts `schema.json` into `ReferenceSchema`. The model source is
+copied into a temporary consumer project and loaded by DBWarden's public model
+discovery path.
+
+## Migration fixture
+
+Handwritten migration tests use a database directory such as
+`migrations/primary`. Files use the DBWarden format with an upgrade section and
+a rollback section. The migration player invokes the CLI and never calls an
+internal migration executor.
+
+## Expected assertions
+
+Fixtures should assert expected tables and indexes at minimum. Backend-specific
+fixtures should also assert relevant semantic options such as ClickHouse engine
+and sorting key values.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/reference/glossary/
+========================================================================
+
+# Glossary
+
+**Black box**
+: A test boundary that uses public inputs and outputs without importing private
+  implementation details.
+
+**Consumer project**
+: A temporary project directory containing DBWarden configuration, model files,
+  migrations, and database state.
+
+**Drift**
+: A semantic difference between expected model state and observed database
+  state.
+
+**Provider**
+: A lifecycle object that starts, resets, diagnoses, and stops a disposable
+  database.
+
+**Reference schema**
+: A checked-in model fixture plus expected table and index metadata.
+
+**Round trip**
+: Generate migrations, apply them, reverse engineer the live database, reload
+  generated models, and require convergence.
+
+**Semantic snapshot**
+: A normalized representation of live database objects used for comparison.
+
+**Experimental cell**
+: A matrix test that runs and retains evidence but is allowed to fail because a
+  known package compatibility issue exists.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/reference/layout/
+========================================================================
+
+# Repository Layout
+
+```text
+.github/workflows/       Pull request, matrix, plugin, distribution, performance CI
+harness/                 CLI, distribution, plugin, matrix, provenance helpers
+infrastructure/          Provider abstractions and Docker compose files
+schemas/                 Reference model fixtures and registry
+suites/                  Black-box test categories
+tests/                   Harness unit and contract tests
+tools/                   Migration player, drift checker, artifacts, reports, benchmarks
+snapshots/               Committed SQL baselines
+baselines/               Performance reference data
+docs/                    This documentation site
+zensical.toml            Documentation configuration and navigation
+```
+
+The harness repository is independent of the DBWarden source repository. A
+clean harness install resolves DBWarden from the configured distribution
+environment.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/adoption/
+========================================================================
+
+# Adoption Tests
+
+Adoption tests cover the handoff from an existing schema or external migration
+tool to DBWarden.
+
+## Fixtures
+
+Documentation fixtures exist for:
+
+- Alembic
+- Django
+- Atlas
+
+Each fixture explains a public `generate-models` and baseline workflow.
+
+## Current executable checks
+
+- An existing SQLite schema can be reverse engineered.
+- A generated model file is written to the requested output directory.
+- Existing schemas can be marked as baseline without reapplying DDL.
+- All three handoff fixture documents contain baseline and schema guidance.
+
+## Run
+
+```bash
+uv run pytest -q suites/adoption
+```
+
+The current executable baseline uses SQLite. Actual Django, Atlas, and Alembic
+tool execution requires those external tools and is intentionally not claimed
+by the current suite.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/distribution/
+========================================================================
+
+# Distribution Tests
+
+Distribution tests treat the installed wheel as the product under test.
+
+## Covered behavior
+
+- DBWarden package metadata can be inspected.
+- Expected package files are present.
+- The `dbwarden` console entry point exists.
+- Development files are not leaked into the distribution.
+- The public CLI exposes core commands.
+- The public CLI reports a version.
+- A clean installed distribution is not resolved from a source checkout.
+- Provenance records package locations and versions.
+
+## Run
+
+```bash
+uv run pytest -q tests/test_distribution.py tests/test_distribution_smoke.py
+uv run pytest -q suites/distribution
+```
+
+The distribution workflow installs the locked harness environment and runs
+these checks in GitHub Actions.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/
+========================================================================
+
+# Test Suites
+
+Suites are grouped by the confidence question they answer. Fast tests verify
+the harness itself. Integration tests verify real provider behavior. Slow tests
+measure durability and performance.
+
+| Suite | Location | Main question |
+| --- | --- | --- |
+| Distribution | `suites/distribution` | Can a clean install expose the expected CLI? |
+| Round trips | `suites/round_trip` | Does a real database converge? |
+| Durability | `suites/durability` | Does migration history survive rollback and failure? |
+| Safety | `suites/safety` | Are risky operations classified and guarded? |
+| Offline | `suites/offline` | Can local artifacts support offline workflows? |
+| Plugins | `suites/plugin_integration` | Do public plugins install and compose? |
+| Adoption | `suites/adoption` | Can an existing schema be handed to DBWarden? |
+| SQL contracts | `suites/sql_contract` | Is generated output deterministic and approved? |
+| Performance | `suites/performance` | Does scale remain within the measured budget? |
+
+Run one category with:
+
+```bash
+uv run pytest -q suites/distribution
+```
+
+Use the integration environment variable for provider categories.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/performance/
+========================================================================
+
+# Performance Tests
+
+Performance tests measure the harness and DBWarden as a consumer workflow.
+
+## Measurements
+
+- Snapshot capture microbenchmark
+- Reference scale fixture
+- Snapshot serialization
+- 500 migration preparation, replay, diff, and total time
+- Optional deferred snapshot replay
+
+## Run small benchmarks
+
+```bash
+uv run pytest -q suites/performance/test_snapshot_benchmark.py
+```
+
+## Run scale benchmarks
+
+```bash
+DBWARDEN_HARNESS_RUN_SCALE=1 uv run pytest suites/performance/test_scale.py -s
+```
+
+## Run the 500 migration benchmark
+
+```bash
+DBWARDEN_HARNESS_RUN_500_MIGRATION=1 uv run pytest suites/performance/test_convergence_500.py -s
+```
+
+The benchmark is opt in because it is intentionally expensive. Results should
+be compared on the same Python, filesystem, DBWarden version, and machine
+class. The repository baseline is a reference measurement, not a universal SLA.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/plugins/
+========================================================================
+
+# Plugin Tests
+
+Plugin tests validate the public installation and discovery path.
+
+## Declared plugins
+
+- `dbwarden-pgsql-types`
+- `dbwarden-pgsql-rbac`
+- `dbwarden-pgsql-extensions`
+- `dbwarden-ch-rbac`
+- `dbwarden-fastapi`
+- `dbwarden-sandbox`
+- `dbwarden-seeds`
+
+## Current checks
+
+`PluginInstaller` builds public CLI commands, installs required distributions,
+lists discovered plugins, and inspects installed package metadata. Unit tests
+also verify command construction and explicit version pinning.
+
+## Run
+
+The full plugin installation test is integration marked because it installs
+packages through the DBWarden CLI:
+
+```bash
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/plugin_integration
+```
+
+Plugin composition with real backend objects is the next expansion area. The
+current suite intentionally separates package discovery from backend behavior.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/round-trip/
+========================================================================
+
+# Round Trip Tests
+
+Round-trip tests are the main provider-backed correctness suite.
+
+## Files
+
+- `test_backend_round_trip.py` checks the latest PostgreSQL, MySQL, MariaDB,
+  and ClickHouse reference flow.
+- `test_version_matrix_round_trip.py` runs the reference flow across declared
+  backend versions.
+- `test_generate_models_integration.py` checks reverse engineering and reload.
+- `test_backend_evolution.py` checks staged changes, rollback, and reapply.
+- `test_providers.py` checks lifecycle, version selection, and reset isolation.
+- `test_sqlite_black_box.py` checks public SQLite behavior.
+
+## Run one backend
+
+```bash
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_trip -k postgres
+```
+
+The matrix workflow uses backend selection to prevent every job from starting
+every database family.
+
+## What makes a round trip meaningful
+
+The test does not stop after a command returns zero. It inspects tables,
+columns, indexes, constraints, backend table options, generated model content,
+and public diff output. This catches failures where SQL execution succeeds but
+the representation used for the next migration is incomplete.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/suites/sql-contracts/
+========================================================================
+
+# SQL Contract Tests
+
+SQL contract tests protect deterministic generated output and approved
+baselines.
+
+## Covered behavior
+
+- Repeated generation is deterministic.
+- Snapshot files can be captured and compared.
+- Unified SQL differences are readable.
+- Approved snapshots can be written to a destination.
+- Committed baseline manifests remain available for review.
+
+## Run
+
+```bash
+uv run pytest -q suites/sql_contract tests/test_tools.py tests/test_snapshot_manifest.py
+```
+
+SQL snapshots are contracts, not substitutes for real database execution.
+Round-trip suites provide the execution proof.
+
+========================================================================
+PAGE: https://dbwarden-org.github.io/dbwarden-harness/why-a-harness/
+========================================================================
+
+# Why a Harness?
+
+DBWarden's own test suite is the right place for unit tests, internal
+regressions, SQL builder assertions, handler coverage, and tests that need
+implementation access. The harness exists because those tests cannot certify a
+published package as a consumer experiences it.
+
+## The release boundary is real
+
+A source checkout and a built wheel are different products. A checkout can
+resolve local modules, local plugins, development dependencies, uncommitted
+files, or source-only entry points. A wheel can omit a file, expose a wrong
+entry point, resolve a different optional dependency, or package behavior that
+does not match the current checkout.
+
+The harness starts from a locked environment and inspects the installed
+distribution. Every failure can include the package version, installation
+location, Python runtime, platform, and lockfile checksum. This answers the
+question that a source test cannot answer: what happens to a user who installs
+this exact release?
+
+## A database is not a string comparison
+
+SQL output can look plausible and still fail at execution time. Foreign key
+ordering, database-specific type rules, engine requirements, server defaults,
+identifier folding, and transaction behavior all belong to the database
+server. A mocked connection cannot reproduce those rules.
+
+The harness creates real disposable providers and applies migrations through
+the public CLI. The database parses and executes the statements. The harness
+then inspects the resulting state through a backend-aware capture path.
+
+## Backend support is a matrix
+
+DBWarden supports several database families with different semantics. A
+passing PostgreSQL test does not certify MySQL. A passing MySQL test does not
+certify MariaDB. ClickHouse has a different table engine model, and SQLite is
+used for local development with its own behavior.
+
+The provider matrix separates lifecycle readiness from migration correctness.
+The first proves that a server is running. The second proves that DBWarden can
+create, alter, inspect, and converge against it.
+
+## Initial creation hides history problems
+
+Production schemas do not appear in one operation. They accumulate migrations,
+rollback attempts, partial deployments, manual baselines, and version history.
+The risky behavior is often in the transition between states rather than in
+the first `CREATE TABLE` statement.
+
+The harness therefore tests staged upgrades, rollback, reapplication, deleted
+migration files, failed migration repair, long chains, and provider reset. The
+same reasoning applies to reverse engineering: the generated model must be
+usable by a consumer project, not merely present on disk.
+
+## Plugins are part of the public product
+
+Plugins can add model metadata, SQL, commands, entry points, and database
+objects. They may work alone and fail when combined. They may also be present
+in the source environment but absent from a wheel or incorrectly discovered at
+runtime.
+
+The harness installs plugins through the public plugin interface, checks
+distribution metadata, and provides integration suites for composition. It
+keeps plugin failures attributable to a package and version.
+
+## Correctness needs evidence
+
+An integration failure that says only `test failed` is expensive to investigate.
+The harness can retain the command, standard streams, generated migrations,
+model state, provider metadata, container logs, package provenance, and runtime
+details. This turns a transient CI event into an artifact that can be studied
+and reproduced.
+
+## The boundary also protects the harness
+
+The harness must not become a second copy of DBWarden internals. Private imports
+make tests coupled to implementation details and can create false confidence.
+The black-box boundary test rejects private module references. Public behavior,
+generated artifacts, and real database state are the contract.
+
+## What the harness proves
+
+A passing test provides evidence for a specific combination of:
+
+- DBWarden package version
+- Python version and platform
+- Plugin versions
+- Database image and server version
+- Reference schema
+- Public CLI flow
+- Database state comparison mode
+
+It does not claim that every possible schema or every unsupported plugin works.
+It makes the tested boundary explicit and records known gaps rather than
+silently widening the claim.
