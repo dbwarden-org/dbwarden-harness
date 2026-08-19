@@ -10,9 +10,53 @@ coverage. A provider being ready is not evidence that migrations converge.
 | Version round trip | local | scheduled | experimental on `0.16.5` | experimental on `0.16.5` | scheduled |
 | Structural drift capture | yes | yes | yes | yes | yes |
 | Backend table metadata | limited | dialect-dependent | dialect-dependent | dialect-dependent | engine/order/partition keys |
-| Staged upgrade/reapply | yes | planned | planned | planned | planned |
-| Rollback execution | yes | planned | planned | planned | planned |
-| Failure recovery | partial | planned | planned | planned | planned |
+| Staged upgrade/reapply | yes | yes | planned | planned | yes |
+| Rollback execution | yes | yes | planned | planned | yes |
+| Failure recovery | partial | yes | planned | planned | yes |
+| Adversarial scenarios | no | yes | no | no | yes |
+| Production lock/perf safety | no | yes | no | no | yes |
+
+## Adversarial Scenarios
+
+Added under `suites/adversarial/` and run against real Docker databases.
+
+**PostgreSQL**
+
+- rename + type change simultaneously
+- rename + constraint change
+- drop + recreate with same signature
+- ambiguous rename detection
+- partition changes
+- generated columns
+- concurrent indexes (transactional contract)
+- enum changes
+
+**ClickHouse single-node**
+
+- ORDER BY changes
+- PARTITION BY changes
+- codec changes
+- projection changes
+- materialized-view SELECT changes
+- MV target changes
+- engine recreation with existing data
+- engine recreation + rollback
+- partially failed recreate
+
+**ClickHouse replicated cluster**
+
+- MergeTree → ReplicatedMergeTree
+- ReplicatedMergeTree → ReplicatedReplacingMergeTree
+- replicated materialized view
+- ON CLUSTER propagation
+- Keeper path changes
+
+**Production lock/performance safety**
+
+- PostgreSQL add column under concurrent workload
+- PostgreSQL CREATE INDEX lock classification
+- ClickHouse add column under concurrent workload
+- ClickHouse engine recreation downtime documentation
 
 ## Release Findings
 

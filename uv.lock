@@ -420,7 +420,7 @@ wheels = [
 
 [[package]]
 name = "dbwarden"
-version = "0.16.5"
+version = "0.17.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -431,9 +431,9 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/61/e8/0f904b89cd01915ab51d37f75708872e9d78aadad7bfe0785ea6f7feca81/dbwarden-0.16.5.tar.gz", hash = "sha256:5ee18a58e1538ea10364c6782da9bf972fdc2867279f6096fcc1c02d2de988ba", size = 1964442, upload-time = "2026-08-06T12:35:05.352Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ea/8a/97d75b3b73b31e64b3879fc1154533cf33d1e8f4ab37fc5548083b43b004/dbwarden-0.17.1.tar.gz", hash = "sha256:a790f0f61200c40f92236179491ef10eb1f8eb29df10f754ee438d2cc237084a", size = 2016492, upload-time = "2026-08-15T20:36:08.922Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b0/4c/dba3c1738c9751dc0e889499e0631aa9bfab7e625404f7ac2f6ce6677084/dbwarden-0.16.5-py3-none-any.whl", hash = "sha256:3e97c949c02b274225c88b579e5d43d725f152917c0578a3ec807b0b94ceba74", size = 348293, upload-time = "2026-08-06T12:35:04.054Z" },
+    { url = "https://files.pythonhosted.org/packages/6a/06/355b3e4ffc5ebc14caf4154b1e9efbe8bd98e7f4adcdbe9fe3c737b42295/dbwarden-0.17.1-py3-none-any.whl", hash = "sha256:68c24c7bd8314772412ed4550814c05f09706d4cd581a2143b79628030f4938d", size = 362945, upload-time = "2026-08-15T20:36:06.622Z" },
 ]
 
 [package.optional-dependencies]
@@ -470,7 +470,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dbwarden", extras = ["postgres", "mysql", "clickhouse"], specifier = ">=0.16.5" },
+    { name = "dbwarden", extras = ["clickhouse", "mysql", "postgres"], specifier = ">=0.17.1" },
     { name = "testcontainers", specifier = ">=4.10" },
 ]
 
