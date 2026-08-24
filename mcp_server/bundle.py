@@ -1,0 +1,215 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import shutil
+import stat
+from dataclasses import asdict
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from mcp_server.classifier import classify_divergence
+from mcp_server.models import ComparisonResult, TrackResult, TwoTrackResult
+from mcp_server.workspace import Workspace
+
+
+def assemble_proof_bundle(
+    workspace: Workspace,
+    base_models_source: str,
+    mutated_models_source: str,
+    track_a_result: TrackResult,
+    track_b_result: TrackResult,
+    comparison: ComparisonResult,
+    reference_mode: str,
+) -> TwoTrackResult:
+    """Freeze the workspace and produce an immutable evidence bundle."""
+    workspace.freeze()
+
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S")
+    bundle_dir = (
+        Path(os.environ.get("DBWARDEN_HARNESS_BUG_REPORTS_DIR", "bug-reports")).resolve()
+        / f"{timestamp}_{workspace.workspace_id}"
+    )
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+
+    input_dir = bundle_dir / "input"
+    track_a_dir = bundle_dir / "track_a"
+    track_b_dir = bundle_dir / "track_b"
+    comparator_dir = bundle_dir / "comparator"
+    reproduction_dir = bundle_dir / "reproduction"
+
+    for directory in (input_dir, track_a_dir, track_b_dir, comparator_dir, reproduction_dir):
+        directory.mkdir(parents=True, exist_ok=True)
+
+    classification = classify_divergence(track_a_result.plan, asdict(comparison.summary))
+
+    _write_inputs(input_dir, workspace, base_models_source, mutated_models_source)
+    _write_track_a(track_a_dir, workspace, track_a_result)
+    _write_track_b(track_b_dir, track_b_result, reference_mode)
+    _write_comparator(comparator_dir, comparison)
+    _write_classification(bundle_dir, classification, track_a_result.plan, comparison)
+    _write_reproduction_script(
+        reproduction_dir,
+        workspace,
+        base_models_source,
+        mutated_models_source,
+        reference_mode,
+    )
+    _write_manifest(bundle_dir)
+    _make_read_only(bundle_dir)
+
+    return TwoTrackResult(
+        passed=False,
+        track_a=track_a_result,
+        track_b=track_b_result,
+        comparator=comparison,
+        classification=classification,
+        proof_bundle_path=bundle_dir,
+        ai_may_inspect=True,
+    )
+
+
+def _write_inputs(
+    input_dir: Path,
+    workspace: Workspace,
+    base_models_source: str,
+    mutated_models_source: str,
+) -> None:
+    (input_dir / "base_models.py").write_text(base_models_source, encoding="utf-8")
+    (input_dir / "mutated_models.py").write_text(mutated_models_source, encoding="utf-8")
+    config_path = workspace.work_dir / "dbwarden.py"
+    if config_path.exists():
+        shutil.copy2(config_path, input_dir / "dbwarden.py")
+    (input_dir / "mutation_log.json").write_text(
+        json.dumps(workspace.mutations, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_track_a(track_a_dir: Path, workspace: Workspace, result: TrackResult) -> None:
+    migrations_src = workspace.work_dir / "migrations"
+    if migrations_src.exists():
+        shutil.copytree(migrations_src, track_a_dir / "generated_migrations", dirs_exist_ok=True)
+    (track_a_dir / "schema_dump.sql").write_text(result.schema_dump, encoding="utf-8")
+
+    logs = ""
+    if hasattr(workspace.track_a_provider, "logs"):
+        logs = workspace.track_a_provider.logs()
+    (track_a_dir / "container_logs.log").write_text(logs, encoding="utf-8")
+
+
+def _write_track_b(track_b_dir: Path, result: TrackResult, reference_mode: str) -> None:
+    (track_b_dir / "schema_dump.sql").write_text(result.schema_dump, encoding="utf-8")
+    (track_b_dir / "reference_mode.txt").write_text(reference_mode + "\n", encoding="utf-8")
+
+
+def _write_comparator(comparator_dir: Path, comparison: ComparisonResult) -> None:
+    (comparator_dir / "diff.patch").write_text(comparison.diff, encoding="utf-8")
+    (comparator_dir / "diff_summary.json").write_text(
+        json.dumps(asdict(comparison.summary), indent=2) + "\n",
+        encoding="utf-8",
+    )
+    (comparator_dir / "identical_before_mutation.txt").write_text(
+        "Both tracks were seeded from the same base_models.py before mutation.\n",
+        encoding="utf-8",
+    )
+
+
+def _write_classification(
+    bundle_dir: Path,
+    classification: str,
+    plan: dict[str, Any] | None,
+    comparison: ComparisonResult,
+) -> None:
+    (bundle_dir / "classification.json").write_text(
+        json.dumps(
+            {
+                "classification": classification,
+                "plan": plan,
+                "diff_summary": asdict(comparison.summary),
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_reproduction_script(
+    reproduction_dir: Path,
+    workspace: Workspace,
+    base_models_source: str,
+    mutated_models_source: str,
+    reference_mode: str,
+) -> None:
+    script = f"""#!/bin/bash
+set -euo pipefail
+
+# Auto-generated by dbwarden-harness MCP server.
+# If this script exits 0, the bug is reproducible; if it exits 1, the report was spurious.
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+INPUT_DIR="$SCRIPT_DIR/../input"
+
+echo "Installing dbwarden==${os.environ.get('DBWARDEN_UNDER_TEST', 'latest')} (adjust as needed)"
+
+cd "$INPUT_DIR"
+
+# Track A reproduction using the public dbwarden CLI.
+dbwarden init
+python -m dbwarden baseline --to-version 0000
+cp mutated_models.py app/models.py
+dbwarden make-migrations ai_fuzz_test
+dbwarden migrate
+
+# Track B reproduction using SQLAlchemy Core DDL.
+python - <<'PY'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("repro_models", "app/models.py")
+mod = importlib.util.module_from_spec(spec)
+sys.modules["repro_models"] = mod
+spec.loader.exec_module(mod)
+base = next((getattr(mod, n) for n in dir(mod) if isinstance(getattr(mod, n), type) and hasattr(getattr(mod, n), "metadata")), None)
+if base is None:
+    raise SystemExit("No Base found")
+from sqlalchemy import create_engine
+engine = create_engine("{workspace.track_b_url}")
+base.metadata.drop_all(engine)
+base.metadata.create_all(engine)
+PY
+
+echo "Comparing schema dumps..."
+diff track_a/schema_dump.sql track_b/schema_dump.sql
+echo "Bug reproduced."
+"""
+    script_path = reproduction_dir / "reproduce.sh"
+    script_path.write_text(script, encoding="utf-8")
+    script_path.chmod(script_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def _write_manifest(bundle_dir: Path) -> None:
+    manifest: dict[str, str] = {}
+    for path in sorted(bundle_dir.rglob("*")):
+        if path.is_file():
+            relative = path.relative_to(bundle_dir).as_posix()
+            manifest[relative] = _sha256_file(path)
+    (bundle_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(8192), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _make_read_only(bundle_dir: Path) -> None:
+    for path in bundle_dir.rglob("*"):
+        if path.is_file() or path.is_dir():
+            path.chmod(path.stat().st_mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
