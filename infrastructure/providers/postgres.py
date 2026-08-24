@@ -1,14 +1,23 @@
 from __future__ import annotations
 
+from testcontainers.core.network import Network
+
 from infrastructure.providers.docker import DockerDatabaseProvider
 
 
 class PostgresProvider(DockerDatabaseProvider):
-    def __init__(self, image: str = "postgres:17", *, database: str = "harness") -> None:
+    def __init__(
+        self,
+        image: str = "postgres:17",
+        *,
+        database: str = "harness",
+        network: Network | None = None,
+    ) -> None:
         super().__init__(
             image=image,
             container_port=5432,
             environment={"POSTGRES_USER": "harness", "POSTGRES_PASSWORD": "harness", "POSTGRES_DB": database},
+            network=network,
         )
         self.database = database
 

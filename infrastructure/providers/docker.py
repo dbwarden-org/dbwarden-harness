@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from testcontainers.core.container import DockerContainer
+from testcontainers.core.network import Network
 
 from infrastructure.providers.base import DatabaseProvider
 
@@ -14,6 +15,7 @@ class DockerDatabaseProvider(DatabaseProvider):
     image: str
     container_port: int
     environment: dict[str, str] = field(default_factory=dict)
+    network: Network | None = field(default=None, repr=False)
     _container: DockerContainer | None = field(default=None, init=False, repr=False)
 
     def start(self) -> str:
@@ -22,6 +24,8 @@ class DockerDatabaseProvider(DatabaseProvider):
         container = DockerContainer(self.image).with_exposed_ports(self.container_port)
         for key, value in self.environment.items():
             container = container.with_env(key, value)
+        if self.network is not None:
+            container = container.with_network(self.network)
         self._container = container.start()
         self.wait_for_connection()
         return self.url()

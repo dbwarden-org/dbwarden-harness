@@ -2,11 +2,19 @@ from __future__ import annotations
 
 import time
 
+from testcontainers.core.network import Network
+
 from infrastructure.providers.docker import DockerDatabaseProvider
 
 
 class ClickHouseProvider(DockerDatabaseProvider):
-    def __init__(self, image: str = "clickhouse/clickhouse-server:24.3", *, database: str = "harness") -> None:
+    def __init__(
+        self,
+        image: str = "clickhouse/clickhouse-server:24.3",
+        *,
+        database: str = "harness",
+        network: Network | None = None,
+    ) -> None:
         super().__init__(
             image=image,
             container_port=8123,
@@ -16,6 +24,7 @@ class ClickHouseProvider(DockerDatabaseProvider):
                 "CLICKHOUSE_PASSWORD": "clickhouse",
                 "CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT": "1",
             },
+            network=network,
         )
         self.database = database
 
