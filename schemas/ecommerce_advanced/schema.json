@@ -1,0 +1,7 @@
+{
+  "name": "ecommerce_advanced",
+  "models": "models.py",
+  "backend": "postgresql",
+  "expected_tables": ["products", "orders"],
+  "expected_indexes": ["ix_orders_created_sort"]
+}

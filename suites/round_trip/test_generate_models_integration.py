@@ -84,3 +84,356 @@ def test_generate_models_supports_table_filter_on_sqlite(tmp_path: Path):
     assert "events" in source
     player.configure(database_name=schema.name, model_paths=("filtered",), database_type="sqlite")
     player.assert_converged()
+
+
+@pytest.mark.integration
+def test_clickhouse_native_types_round_trip(tmp_path: Path):
+    schema = next(schema for schema in discover_schemas() if schema.name == "analytics_types")
+    provider = provider_for("clickhouse", "26.6")
+    try:
+        player = MigrationPlayer(provider.start(), tmp_path)
+        runner = SchemaRunner(schema, player, database_type="clickhouse")
+        runner.initialize()
+        runner.make_and_apply("analytics_types native types round trip")
+
+        generated = runner.reverse_engineer(
+            exclude_tables="_dbwarden_migrations,_dbwarden_seeds,dbwarden_lock",
+            clickhouse_engines=True,
+            relationships=False,
+        )
+        source = _assert_generated_model(generated, schema.expected_tables)
+        assert "DateTime64(3)" in source
+        assert "Enum8(" in source
+        assert "FixedString(16)" in source
+        assert "UUID" in source
+
+        player.configure(
+            database_name=schema.name,
+            model_paths=("generated",),
+            database_type="clickhouse",
+        )
+        player.assert_converged()
+    finally:
+        provider.stop()
+
+
+@pytest.mark.integration
+def test_postgresql_identity_and_index_sort_round_trip(tmp_path: Path):
+    schema = next(schema for schema in discover_schemas() if schema.name == "ecommerce_advanced")
+    provider = provider_for("postgres", "17")
+    try:
+        player = MigrationPlayer(provider.start(), tmp_path)
+        runner = SchemaRunner(schema, player, database_type="postgresql")
+        runner.initialize()
+        runner.make_and_apply("ecommerce_advanced identity and index sort round trip")
+
+        generated = runner.reverse_engineer(
+            exclude_tables="_dbwarden_migrations,_dbwarden_seeds,dbwarden_lock",
+            relationships=False,
+        )
+        source = _assert_generated_model(generated, schema.expected_tables)
+        assert "identity=" in source
+        assert "column_sorting" in source
+        assert "DESC NULLS LAST" in source
+
+        player.configure(
+            database_name=schema.name,
+            model_paths=("generated",),
+            database_type="postgresql",
+        )
+        player.assert_converged()
+    finally:
+        provider.stop()
+
+
+@pytest.mark.integration
+def test_postgresql_generated_identity_params_and_exclusion_round_trip(tmp_path: Path):
+    schema = next(schema for schema in discover_schemas() if schema.name == "ecommerce_pg_features")
+    provider = provider_for("postgres", "17")
+    try:
+        player = MigrationPlayer(provider.start(), tmp_path)
+        runner = SchemaRunner(schema, player, database_type="postgresql")
+        runner.initialize()
+        runner.make_and_apply("ecommerce_pg_features generated identity exclusion round trip")
+
+        generated = runner.reverse_engineer(
+            exclude_tables="_dbwarden_migrations,_dbwarden_seeds,dbwarden_lock",
+            relationships=False,
+        )
+        source = _assert_generated_model(generated, schema.expected_tables)
+        assert "identity_start=" in source
+        assert "identity_increment=" in source
+        assert "generated=" in source
+        assert "pg_excludes" in source
+        assert "EXCLUDE" in source
+
+        player.configure(
+            database_name=schema.name,
+            model_paths=("generated",),
+            database_type="postgresql",
+        )
+        player.assert_converged()
+    finally:
+        provider.stop()
+
+
+@pytest.mark.integration
+def test_clickhouse_mode_b_materialized_view_round_trip(tmp_path: Path):
+    schema = next(schema for schema in discover_schemas() if schema.name == "analytics_mv")
+    provider = provider_for("clickhouse", "26.6")
+    try:
+        player = MigrationPlayer(provider.start(), tmp_path)
+        runner = SchemaRunner(schema, player, database_type="clickhouse")
+        runner.initialize()
+        runner.make_and_apply("analytics_mv Mode B round trip")
+
+        generated = runner.reverse_engineer(
+            exclude_tables="_dbwarden_migrations,_dbwarden_seeds,dbwarden_lock",
+            clickhouse_engines=True,
+            relationships=False,
+        )
+        source = _assert_generated_model(generated, schema.expected_tables)
+        assert "class EventSummariesMv(MaterializedView)" in source
+        assert "materialized_view(" in source
+        assert "to='event_summaries'" in source
+        assert "comment = 'Analytics events'" in source
+
+        player.configure(
+            database_name=schema.name,
+            model_paths=("generated",),
+            database_type="clickhouse",
+        )
+        player.assert_converged()
+    finally:
+        provider.stop()
+
+
+@pytest.mark.integration
+def test_clickhouse_mode_a_materialized_view_round_trip(tmp_path: Path):
+    schema = next(schema for schema in discover_schemas() if schema.name == "analytics_full")
+    provider = provider_for("clickhouse", "26.6")
+    try:
+        player = MigrationPlayer(provider.start(), tmp_path)
+        runner = SchemaRunner(schema, player, database_type="clickhouse")
+        runner.initialize()
+        runner.make_and_apply("analytics_full Mode A round trip")
+
+        generated = runner.reverse_engineer(
+            exclude_tables="_dbwarden_migrations,_dbwarden_seeds,dbwarden_lock",
+            clickhouse_engines=True,
+            relationships=False,
+        )
+        source = _assert_generated_model(generated, schema.expected_tables)
+        assert "class EventTypeStats(Base)" in source
+        assert "class EventTypeStatsMv(MaterializedView)" in source
+        assert "materialized_view(" in source
+        assert "to='event_type_stats'" in source
+        assert "comment = 'Analytics events'" in source
+
+        player.configure(
+            database_name=schema.name,
+            model_paths=("generated",),
+            database_type="clickhouse",
+        )
+        player.assert_converged()
+    finally:
+        provider.stop()
+
+
+@pytest.mark.integration
+def test_clickhouse_refreshable_materialized_view_round_trip(tmp_path: Path):
+    schema = next(schema for schema in discover_schemas() if schema.name == "analytics_refreshable_mv")
+    provider = provider_for("clickhouse", "26.6")
+    try:
+        player = MigrationPlayer(provider.start(), tmp_path)
+        runner = SchemaRunner(schema, player, database_type="clickhouse")
+        runner.initialize()
+        runner.make_and_apply("analytics_refreshable_mv refreshable round trip")
+
+        generated = runner.reverse_engineer(
+            exclude_tables="_dbwarden_migrations,_dbwarden_seeds,dbwarden_lock",
+            clickhouse_engines=True,
+            relationships=False,
+        )
+        source = _assert_generated_model(generated, schema.expected_tables)
+        assert "class EventSummariesMv(MaterializedView)" in source
+        assert "materialized_view(" in source
+        assert "to='event_summaries'" in source
+        assert "refresh='EVERY 1 HOUR'" in source
+
+        player.configure(
+            database_name=schema.name,
+            model_paths=("generated",),
+            database_type="clickhouse",
+        )
+        player.assert_converged()
+    finally:
+        provider.stop()
+
+
+@pytest.mark.integration
+def test_clickhouse_aggregating_view_round_trip(tmp_path: Path):
+    schema = next(schema for schema in discover_schemas() if schema.name == "analytics_aggregating")
+    provider = provider_for("clickhouse", "26.6")
+    try:
+        player = MigrationPlayer(provider.start(), tmp_path)
+        runner = SchemaRunner(schema, player, database_type="clickhouse")
+        runner.initialize()
+        runner.make_and_apply("analytics_aggregating aggregating view round trip")
+
+        generated = runner.reverse_engineer(
+            exclude_tables="_dbwarden_migrations,_dbwarden_seeds,dbwarden_lock",
+            clickhouse_engines=True,
+            relationships=False,
+        )
+        source = _assert_generated_model(generated, schema.expected_tables)
+        assert "AggregatingMergeTree" in source
+        assert "AggregateFunction" in source
+        assert "class EventTypeStatsMv(MaterializedView)" in source
+        assert "sumState" in source
+        assert "countState" in source
+
+        player.configure(
+            database_name=schema.name,
+            model_paths=("generated",),
+            database_type="clickhouse",
+        )
+        player.assert_converged()
+    finally:
+        provider.stop()
+
+
+@pytest.mark.integration
+def test_clickhouse_ttl_codec_and_settings_round_trip(tmp_path: Path):
+    schema = next(schema for schema in discover_schemas() if schema.name == "analytics_ttl")
+    provider = provider_for("clickhouse", "26.6")
+    try:
+        player = MigrationPlayer(provider.start(), tmp_path)
+        runner = SchemaRunner(schema, player, database_type="clickhouse")
+        runner.initialize()
+        runner.make_and_apply("analytics_ttl TTL codec settings round trip")
+
+        generated = runner.reverse_engineer(
+            exclude_tables="_dbwarden_migrations,_dbwarden_seeds,dbwarden_lock",
+            clickhouse_engines=True,
+            relationships=False,
+        )
+        source = _assert_generated_model(generated, schema.expected_tables)
+        assert "ch_ttl" in source
+        assert "toIntervalMonth(6)" in source
+        assert "codec=" in source
+        assert "ZSTD(5)" in source
+        assert "ttl=" in source
+        assert "toIntervalDay(30)" in source
+        assert "ch_settings" in source
+        assert "index_granularity" in source
+
+        player.configure(
+            database_name=schema.name,
+            model_paths=("generated",),
+            database_type="clickhouse",
+        )
+        player.assert_converged()
+    finally:
+        provider.stop()
+
+
+@pytest.mark.integration
+def test_postgresql_advanced_indexes_and_table_props_round_trip(tmp_path: Path):
+    schema = next(schema for schema in discover_schemas() if schema.name == "ecommerce_pg_advanced")
+    provider = provider_for("postgres", "17")
+    try:
+        player = MigrationPlayer(provider.start(), tmp_path)
+        runner = SchemaRunner(schema, player, database_type="postgresql")
+        runner.initialize()
+        runner.make_and_apply("ecommerce_pg_advanced indexes and table props round trip")
+
+        generated = runner.reverse_engineer(
+            exclude_tables="_dbwarden_migrations,_dbwarden_seeds,dbwarden_lock",
+            relationships=False,
+        )
+        source = _assert_generated_model(generated, schema.expected_tables)
+        assert "pg_storage_params" in source
+        assert "fillfactor" in source
+        assert "collation=" in source
+        assert "compression=" in source
+        assert "deferrable=True" in source
+        assert "initially='DEFERRED'" in source
+        assert "no_inherit" in source
+        assert "ix_orders_email_partial" in source
+        assert "ix_orders_session_expr" in source
+        assert "lower(session_token::text)" in source
+
+        player.configure(
+            database_name=schema.name,
+            model_paths=("generated",),
+            database_type="postgresql",
+        )
+        player.assert_converged()
+    finally:
+        provider.stop()
+
+
+@pytest.mark.integration
+def test_clickhouse_projections_and_skip_indexes_round_trip(tmp_path: Path):
+    schema = next(schema for schema in discover_schemas() if schema.name == "analytics_projections")
+    provider = provider_for("clickhouse", "26.6")
+    try:
+        player = MigrationPlayer(provider.start(), tmp_path)
+        runner = SchemaRunner(schema, player, database_type="clickhouse")
+        runner.initialize()
+        runner.make_and_apply("analytics_projections projections and indexes round trip")
+
+        generated = runner.reverse_engineer(
+            exclude_tables="_dbwarden_migrations,_dbwarden_seeds,dbwarden_lock",
+            clickhouse_engines=True,
+            relationships=False,
+        )
+        source = _assert_generated_model(generated, schema.expected_tables)
+        assert "class Events(Base)" in source
+        assert "ProjectionSpec(" in source
+        assert "by_name" in source
+        assert "ChIndexSpec(" in source
+        assert "bloom_filter" in source
+
+        player.configure(
+            database_name=schema.name,
+            model_paths=("generated",),
+            database_type="clickhouse",
+        )
+        player.assert_converged()
+    finally:
+        provider.stop()
+
+
+@pytest.mark.integration
+def test_clickhouse_materialized_view_with_join_round_trip(tmp_path: Path):
+    schema = next(schema for schema in discover_schemas() if schema.name == "analytics_mv_join")
+    provider = provider_for("clickhouse", "26.6")
+    try:
+        player = MigrationPlayer(provider.start(), tmp_path)
+        runner = SchemaRunner(schema, player, database_type="clickhouse")
+        runner.initialize()
+        runner.make_and_apply("analytics_mv_join MV with JOIN round trip")
+
+        generated = runner.reverse_engineer(
+            exclude_tables="_dbwarden_migrations,_dbwarden_seeds,dbwarden_lock",
+            clickhouse_engines=True,
+            relationships=False,
+        )
+        source = _assert_generated_model(generated, schema.expected_tables)
+        assert "class EventUserValues(Base)" in source
+        assert "class EventUserValuesMv(MaterializedView)" in source
+        assert "materialized_view(" in source
+        assert "to='event_user_values'" in source
+        mv_section = source.split("class EventUserValuesMv", 1)[1].split("\n\nclass", 1)[0]
+        assert "events" in mv_section and "users" in mv_section
+
+        player.configure(
+            database_name=schema.name,
+            model_paths=("generated",),
+            database_type="clickhouse",
+        )
+        player.assert_converged()
+    finally:
+        provider.stop()

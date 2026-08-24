@@ -1,0 +1,7 @@
+{
+  "name": "analytics_mv_join",
+  "models": "models.py",
+  "backend": "clickhouse",
+  "expected_tables": ["events", "users", "event_user_values", "event_user_values_mv"],
+  "expected_indexes": []
+}

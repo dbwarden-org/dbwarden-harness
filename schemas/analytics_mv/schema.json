@@ -1,0 +1,7 @@
+{
+  "name": "analytics_mv",
+  "models": "models.py",
+  "backend": "clickhouse",
+  "expected_tables": ["events", "event_summaries", "event_summaries_mv"],
+  "expected_indexes": []
+}

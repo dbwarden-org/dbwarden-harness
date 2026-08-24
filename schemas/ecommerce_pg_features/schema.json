@@ -1,0 +1,7 @@
+{
+  "name": "ecommerce_pg_features",
+  "models": "models.py",
+  "backend": "postgresql",
+  "expected_tables": ["orders"],
+  "expected_indexes": []
+}

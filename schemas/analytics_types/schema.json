@@ -1,0 +1,7 @@
+{
+  "name": "analytics_types",
+  "models": "models.py",
+  "backend": "clickhouse",
+  "expected_tables": ["typed_events"],
+  "expected_indexes": []
+}

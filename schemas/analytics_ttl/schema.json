@@ -1,0 +1,7 @@
+{
+  "name": "analytics_ttl",
+  "models": "models.py",
+  "backend": "clickhouse",
+  "expected_tables": ["sensor_readings"],
+  "expected_indexes": []
+}
