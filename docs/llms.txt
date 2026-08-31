@@ -16,6 +16,7 @@
 - [Correctness Overview](https://harness.dbwarden.org/correctness/): Layered meaning of a passing harness test
 - [Convergence Model](https://harness.dbwarden.org/correctness/convergence/): Reference, migration, live, and reverse-engineered states
 - [Round Trips](https://harness.dbwarden.org/correctness/round-trips/): Baseline, generate-models, and evolution flows
+- [Constraint Enforcement](https://harness.dbwarden.org/correctness/enforcement/): Writing rows the models forbid, and requiring the server to refuse
 - [Semantic Drift](https://harness.dbwarden.org/correctness/semantic-drift/): Portable and backend-specific schema comparison
 - [Durability and Recovery](https://harness.dbwarden.org/correctness/durability/): Long chains, rollback, reapply, and repair after failure
 - [Safety](https://harness.dbwarden.org/correctness/safety/): Destructive operation classification and force checks
@@ -25,6 +26,11 @@
 - [Test Suites](https://harness.dbwarden.org/suites/): Confidence questions and suite locations
 - [Distribution](https://harness.dbwarden.org/suites/distribution/): Clean package, entry point, and CLI checks
 - [Round Trips](https://harness.dbwarden.org/suites/round-trip/): Real database migration and convergence checks
+- [Semantics](https://harness.dbwarden.org/suites/semantics/): Constraint enforcement and regeneration silence
+- [Adversarial](https://harness.dbwarden.org/suites/adversarial/): Renames, recreations, engine swaps, replicated DDL, and load
+- [Durability](https://harness.dbwarden.org/suites/durability/): Long chains, subset rollback, replay, and repair
+- [Safety](https://harness.dbwarden.org/suites/safety/): Expected refusals and destructive operation gates
+- [Offline](https://harness.dbwarden.org/suites/offline/): Exported model state, tamper detection, and recovery
 - [Plugins](https://harness.dbwarden.org/suites/plugins/): Public plugin installation and discovery
 - [Adoption](https://harness.dbwarden.org/suites/adoption/): Existing schema handoff and baselines
 - [SQL Contracts](https://harness.dbwarden.org/suites/sql-contracts/): Deterministic output and committed snapshots
@@ -43,7 +49,9 @@
 - [Release Provenance](https://harness.dbwarden.org/operations/provenance/): Installed package and runtime identity
 - [CI](https://harness.dbwarden.org/operations/ci/): Pull request, matrix, plugin, distribution, and performance workflows
 - [Troubleshooting](https://harness.dbwarden.org/operations/troubleshooting/): Common local and CI failures
-- [Compatibility Findings](https://harness.dbwarden.org/operations/compatibility/): Known PyPI 0.16.5 behavior and experimental cells
+- [Compatibility Findings](https://harness.dbwarden.org/operations/compatibility/): How release findings are read, operated, and promoted
+- [Coverage Matrix](https://harness.dbwarden.org/coverage-matrix/): What is covered per backend, and what is not
+- [Known Findings by Release](https://harness.dbwarden.org/known-compatibility/): Observed defects per published release, with the test that finds each
 
 ## Reference
 - [Environment Variables](https://harness.dbwarden.org/reference/environment/): Harness controls

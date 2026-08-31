@@ -35,3 +35,7 @@ jobs:
         env:
           DBWARDEN_HARNESS_RUN_INTEGRATION: "1"
         run: uv run pytest -m integration suites/round_trip/test_sqlite_black_box.py -k ecommerce -q
+      - name: PostgreSQL constraint semantics
+        env:
+          DBWARDEN_HARNESS_RUN_INTEGRATION: "1"
+        run: uv run pytest -m integration suites/semantics -k "postgres-17 or reverse" -q

@@ -30,10 +30,11 @@
   <strong><a href="https://github.com/dbwarden-org/dbwarden">dbwarden</a></strong>
 </p>
 
-dbwarden Test Harness is a standalone black-box validation suite for dbwarden
-releases, database backends, and plugin combinations. It installs dbwarden as
-a consumer, invokes its public command line interface, creates disposable real
-database instances, and verifies the resulting schema and migration history.
+dbwarden Test Harness is a standalone black-box validation suite for dbwarden's
+schema compilation across all target architectures and plugin combinations. It
+installs dbwarden as a consumer, invokes its public command line interface,
+creates disposable real database instances, and verifies the compiled SQL
+produces the correct schema.
 
 The harness is not a second unit test suite for dbwarden internals. It is a
 release certification boundary. If a published wheel, database driver,
@@ -47,13 +48,15 @@ contract, this repository should expose that difference.
 - PostgreSQL, MySQL, MariaDB, ClickHouse, and SQLite providers
 - Multiple database versions through disposable containers
 - Real migration application and schema convergence
+- Constraint enforcement checked by writing rows the models forbid
+- Regeneration silence: unchanged models must produce no second migration
 - Full `generate-models` reverse engineering flows
 - Staged upgrade, rollback, reapply, and recovery tests
 - Foreign key, unique constraint, index, default, and type assertions
 - ClickHouse engine, sorting key, partition, and table metadata checks
 - Safety classification and destructive operation checks
 - Offline model-state checksum verification
-- Plugin discovery and public installation checks
+- Plugin discovery, public installation, and plugin objects on a live server
 - Alembic, Django, and Atlas adoption fixtures
 - Deterministic SQL contract snapshots
 - Long migration chain and replay benchmarks
@@ -101,6 +104,19 @@ Version changes can introduce new behavior without changing dbwarden code.
 The provider matrix runs the same consumer flow against declared database
 versions. Lifecycle tests prove that a server is ready. Migration tests prove
 that dbwarden can use it. The two signals are intentionally kept separate.
+
+### An applied schema can still constrain nothing
+
+A migration that applies cleanly proves the server parsed the statements. It
+does not prove the schema forbids anything. A release can drop every declared
+unique and check constraint on the way from model to SQL, apply without error,
+and produce a database that accepts duplicates - and the reverse-engineering
+pass then reports it as consistent, because it is consistent with a model that
+lost the constraint at both ends.
+
+Inspection cannot separate a constraint that exists from one that is enforced.
+An `INSERT` can. The semantics suite declares constraints, applies the
+migration, and requires the server to refuse the rows the models forbid.
 
 ### A migration can pass and still drift
 
@@ -253,7 +269,7 @@ Provider implementations live in `infrastructure/providers`.
 | MySQL | 8.0, 8.4 | Ecommerce |
 | MariaDB | 10.11, 11.4 | Ecommerce |
 | ClickHouse | 24.3, 26.6 | Analytics |
-| SQLite | Local file | Analytics and edge cases |
+| SQLite | Local file, library version reported | Analytics, edge cases, constraint semantics |
 
 Each provider owns readiness polling, URL construction, version reporting,
 reset behavior, safe diagnostics, log collection, and teardown. A provider
@@ -273,6 +289,8 @@ The harness validates more than a zero exit code. It checks:
 - Reapplication restores the expected state
 - Generated models can be loaded by a consumer project
 - A public diff reports no remaining operations
+- The server refuses rows the declared constraints forbid
+- Regenerating from unchanged models produces no second migration
 
 The generate-models suite excludes dbwarden-owned bookkeeping tables from the
 application model path. The generated artifact is still checked for content,
@@ -363,27 +381,38 @@ and reasons are retained rather than silently skipping the tests.
 
 ## Compatibility findings
 
-The current PyPI `dbwarden` 0.16.5 package has known findings:
+The current PyPI `dbwarden` 0.17.1 package has known findings:
 
-- MariaDB migration generation can order a child table before its referenced
-  parent table.
-- MySQL reverse engineering can report an incomplete `varchar` type during
-  final diff in some full version scenarios.
-- Default reverse engineering can include dbwarden bookkeeping tables that are
-  not appropriate for application model input.
+- SQLite renders declared `uniques` and `checks` as
+  `ALTER TABLE ... ADD CONSTRAINT`, which SQLite cannot parse, so `migrate`
+  fails and the schema is never created.
+- A model with a foreign key fails during `make-migrations` on SQLite with a
+  rollback-contract error.
+- MySQL and MariaDB render an integer primary key without `AUTO_INCREMENT`, so
+  the migration applies and the first insert that omits the key fails.
+- Configuration-declared objects - roles, domains, sequences, functions,
+  triggers - are diffed against an empty snapshot, so every generation
+  recreates them and the second `migrate` fails with `already exists`.
+- Reverse-engineered models can reference `func` without importing it, making
+  the generated file unloadable when dbwarden's own tables are included.
 
-The first two findings remain explicit experimental cells in the backend
-matrix. Details and reproduction commands are in
-`docs/known-compatibility.md`.
+Each finding names the test that observes it and the state of its fix in
+`docs/known-compatibility.md`. Reproduce the two SQLite findings without
+Docker:
+
+```bash
+uv run pytest -q suites/semantics -m "not integration"
+```
 
 ## Repository layout
 
 ```text
 infrastructure/   Docker providers and lifecycle code
 harness/          CLI, distribution, plugin, matrix, and provenance helpers
+mcp_server/       MCP server for interactive testing workspaces
 schemas/          Reference model fixtures
-suites/           Integration, durability, safety, offline, adoption, and performance tests
-tools/            Migration driving, drift checking, artifacts, reports, and benchmarks
+suites/           Round trip, semantics, adversarial, durability, safety, offline, adoption, distribution, generative, and performance tests
+tools/            Migration driving, drift checking, SQL probe, artifacts, reports, and benchmarks
 tests/            Harness unit and contract tests
 snapshots/        Committed SQL contract baselines
 docs/             Compatibility and coverage documentation

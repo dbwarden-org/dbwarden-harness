@@ -1,7 +1,7 @@
 # Generative matrix suite
 
 The other suites answer "does this scenario work?".  This one answers
-"**which** of these hundreds of nearly-identical declarations work?" — and,
+"**which** of these hundreds of nearly-identical declarations work?" and,
 just as importantly, which of them dbwarden accepts, migrates, reports success
 for, and silently does nothing about.
 
@@ -38,7 +38,7 @@ runner records whether a migration file was produced at all, so
 ### Why a separate runner rather than `MigrationPlayer`
 
 `MigrationPlayer` drives one project through one flow and raises on the first
-unexpected stream — exactly right for a scenario test.  A matrix needs the
+unexpected stream; exactly right for a scenario test.  A matrix needs the
 opposite: hundreds of projects, no exceptions, and every outcome recorded so the
 suite can assert over the *distribution* of results ("40 of 40 changes produced
 nothing") instead of one at a time.  `CaseRunner` is built on the same
@@ -70,7 +70,7 @@ matrices parallelise without contending for a schema.
 Same as `suites/adversarial/`: these tests assert the desirable behavior.  A
 failure is a documented gap, not a test to weaken.  Where a matrix would
 otherwise fail uniformly and say nothing, it includes **contrast cases** that are
-expected to pass — a single migration adding three columns inverts correctly
+expected to pass; a single migration adding three columns inverts correctly
 (`test_rollback_inversion.py`), identifier and comment escaping holds
 (`test_injection.py`), `ADD COLUMN` renders every modifier the change matrix
 refuses to alter (`test_change_matrix.py`).  Those keep the suite honest: if the

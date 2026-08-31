@@ -31,3 +31,11 @@ DBWARDEN_HARNESS_RUN_500_MIGRATION=1 uv run pytest suites/performance/test_conve
 The benchmark is opt in because it is intentionally expensive. Results should
 be compared on the same Python, filesystem, dbwarden version, and machine
 class. The repository baseline is a reference measurement, not a universal SLA.
+
+To assert against a performance baseline (fail if regression detected) instead
+of measuring only:
+
+```bash
+DBWARDEN_HARNESS_RUN_500_MIGRATION=1 DBWARDEN_HARNESS_ENFORCE_PERFORMANCE=1 \
+  uv run pytest suites/performance/test_convergence_500.py -s
+```

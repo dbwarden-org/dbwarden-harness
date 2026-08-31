@@ -27,8 +27,16 @@ class MigrationPlayer:
         model_paths: tuple[str, ...] = (),
         dev_database_type: str | None = None,
         dev_database_url: str | None = None,
+        **extra: Any,
     ) -> Path:
-        """Write a consumer config using only dbwarden's public function API."""
+        """Write a consumer config using only dbwarden's public function API.
+
+        Keyword arguments beyond the declared ones are passed through to
+        ``database_config`` verbatim. Plugins add their own configuration keys -
+        ``pg_roles`` for the PostgreSQL RBAC plugin, for example - and a suite
+        that composes a plugin needs to declare them the way a consumer would,
+        without this helper growing a parameter per plugin.
+        """
         config_path = self.work_dir / "dbwarden.py"
         resolved_type = database_type or self._database_type()
         model_lines = f"    model_paths={list(model_paths)!r},\n" if model_paths else ""
@@ -37,6 +45,9 @@ class MigrationPlayer:
                 f"    dev_database_type={dev_database_type!r},\n" if dev_database_type else "",
                 f"    dev_database_url={dev_database_url!r},\n" if dev_database_url else "",
             ]
+        )
+        extra_lines = "".join(
+            f"    {key}={value!r},\n" for key, value in sorted(extra.items())
         )
         config_path.write_text(
             "from dbwarden import database_config\n\n"
@@ -47,6 +58,7 @@ class MigrationPlayer:
             f"    database_url_sync={self.database_url!r},\n"
             f"{model_lines}"
             f"{dev_lines}"
+            f"{extra_lines}"
             ")\n",
             encoding="utf-8",
         )

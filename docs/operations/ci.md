@@ -5,7 +5,10 @@ The harness separates confidence from cost.
 ## Pull request gate
 
 `.github/workflows/pr-gate.yml` runs locked installation, Ruff, non-integration
-smoke tests, and a PostgreSQL smoke round trip.
+smoke tests, a PostgreSQL smoke round trip, and PostgreSQL constraint
+semantics. The non-integration job is a complete tier, not a sample: every
+SQLite case, including constraint enforcement and regeneration silence, runs
+without Docker.
 
 ## Backend matrix
 
@@ -13,13 +16,20 @@ smoke tests, and a PostgreSQL smoke round trip.
 selects one backend per job and passes the backend selection into pytest. This
 prevents a MySQL job from silently running ClickHouse or PostgreSQL work.
 
+Each relational backend also runs the semantics suite, so a job proves the
+server enforces what the models declare rather than only that the migration
+applied. ClickHouse skips it: it has no `UNIQUE` or `CHECK` table constraints.
+
 PostgreSQL and ClickHouse cells are strict. MySQL and MariaDB experimental
-cells are allowed to expose known PyPI 0.16.5 failures, while preserving their
-logs and artifacts.
+cells are allowed to expose known release failures while preserving their logs
+and artifacts; the current findings are listed in
+[Known Findings by Release](../known-compatibility.md).
 
 ## Plugin workflow
 
-`.github/workflows/plugins.yml` installs and exercises the public plugin path.
+`.github/workflows/plugins.yml` installs and exercises the public plugin path,
+including the role lifecycle that `dbwarden-pgsql-rbac` contributes, against a
+live PostgreSQL server.
 
 ## Distribution workflow
 

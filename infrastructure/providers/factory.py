@@ -7,6 +7,7 @@ from infrastructure.providers.clickhouse import ClickHouseProvider
 from infrastructure.providers.mariadb import MariaDBProvider
 from infrastructure.providers.mysql import MySQLProvider
 from infrastructure.providers.postgres import PostgresProvider
+from infrastructure.providers.sqlite import SQLiteProvider
 
 
 def provider_for(
@@ -15,7 +16,12 @@ def provider_for(
     *,
     network: Network | None = None,
 ) -> DatabaseProvider:
-    """Build a matrix provider without starting a container."""
+    """Build a matrix provider without starting a container.
+
+    SQLite has no image tag, so ``version`` is accepted and ignored for it.
+    Leaving SQLite out would force every suite that mixes a first-class SQLite
+    backend with a container backend to special-case its construction.
+    """
     constructors = {
         "postgres": lambda: PostgresProvider(image=f"postgres:{version}", network=network),
         "postgresql": lambda: PostgresProvider(image=f"postgres:{version}", network=network),
@@ -25,6 +31,7 @@ def provider_for(
             image=f"clickhouse/clickhouse-server:{version}",
             network=network,
         ),
+        "sqlite": SQLiteProvider,
     }
     try:
         return constructors[backend.lower()]()

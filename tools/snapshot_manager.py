@@ -56,6 +56,32 @@ class SnapshotManager:
                 f"{diff.expected.sha256} -> {diff.actual.sha256}\n{diff.unified_text}"
             )
 
+    def baseline_for(
+        self,
+        root: Path,
+        *,
+        version: str,
+        backend: str,
+        name: str,
+    ) -> Path | None:
+        """Return the approved baseline for one release, or None if unapproved.
+
+        Generated SQL is a contract per release, not for all time: a backend fix
+        legitimately changes the bytes, and a baseline captured two releases ago
+        then reports every run as a regression. Baselines are stored under the
+        exact version that produced them, with a ``major.minor`` series
+        directory as a fallback for releases that share one contract.
+        """
+        candidates = [root / f"v{version}"]
+        parts = version.split(".")
+        if len(parts) >= 2:
+            candidates.append(root / f"v{parts[0]}.{parts[1]}")
+        for directory in candidates:
+            baseline = directory / backend / name
+            if baseline.exists():
+                return baseline
+        return None
+
     def build_manifest(self, root: Path) -> dict[str, str]:
         """Return stable SHA-256 checksums for every SQL snapshot below root."""
         return {

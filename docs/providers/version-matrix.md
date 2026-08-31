@@ -18,5 +18,5 @@ uv run pytest -m integration suites/round_trip/test_providers.py
 
 The scheduled matrix workflow runs backend-specific jobs. PostgreSQL and
 ClickHouse are currently strict. MySQL and MariaDB have experimental cells for
-known PyPI 0.16.5 compatibility findings. Their tests run and upload artifacts;
+known PyPI 0.17.1 compatibility findings. Their tests run and upload artifacts;
 they are not silently omitted.

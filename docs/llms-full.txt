@@ -1,7 +1,7 @@
 # dbwarden Test Harness Documentation
 > Full documentation for black-box dbwarden release validation
 > Source: https://harness.dbwarden.org
-> Pages: 39
+> Pages: 45
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/README/
@@ -74,6 +74,14 @@ and system tables because its HTTP URL is not a generic SQLAlchemy URL.
 The snapshot model compares tables, views, columns, constraints, indexes, and
 backend table options. The comparison reports a `DriftItem` with a category,
 object name, expected value, and actual value.
+
+## SqlProbe
+
+`tools/sql_probe.py` runs ordinary SQL against a live database to test
+behaviour rather than shape. `assert_rejects` states the write it expects the
+server to refuse and why; every probe rolls back, so a statement that
+unexpectedly succeeds leaves no row behind. Inspection can only report that a
+constraint exists - a probe reports whether it is enforced.
 
 ## ArtifactCollector
 
@@ -170,6 +178,56 @@ concurrent lock contention, and partial failure injection remain separate
 areas for future provider-specific suites.
 
 ========================================================================
+PAGE: https://harness.dbwarden.org/correctness/enforcement/
+========================================================================
+
+# Constraint Enforcement
+
+Convergence compares representations. Enforcement asks a different question:
+does the database actually refuse what the models forbid?
+
+The two can disagree. A release can drop every declared `uniques` and `checks`
+entry on the way from model to SQL, apply the resulting migration without
+error, and produce a schema that a reverse-engineering pass then reports as
+consistent - because it is consistent, with a model that lost the constraint at
+both ends. Nothing in a shape comparison catches that. An `INSERT` does.
+
+## What the harness asserts
+
+For every declared constraint, the semantics suite performs a write the
+constraint forbids and requires the server to reject it:
+
+- a duplicate value where a unique constraint was declared
+- a row violating a declared check expression
+
+Both must fail on SQLite, PostgreSQL, MySQL, and MariaDB, and must still fail
+after an unrelated constraint has been dropped from the same table.
+
+`tools/sql_probe.py` rolls back every probe, so an unexpected success leaves no
+row behind to distort a later assertion in the same test.
+
+## Why this belongs at the release boundary
+
+The consequence of a missing constraint is not a failed migration. It is an
+application that inserts duplicates for a week, or an `ON CONFLICT` clause with
+no constraint to conflict against, failing at runtime on a code path that was
+never exercised in staging. That is a defect a consumer discovers in
+production, which makes it exactly the class of defect a release gate exists to
+find.
+
+## Relationship to regeneration
+
+A schema can also be enforced and still wrong to operate. If the snapshot of
+the live database does not describe it the way the models do, the next
+`make-migrations` proposes to correct a schema that was never wrong, dropping
+and recreating constraints on every deploy. The semantics suite therefore pairs
+each enforcement test with a regeneration test: apply, change nothing,
+regenerate, and require silence.
+
+See [Semantics Tests](../suites/semantics.md) for the suite layout and how to
+run it.
+
+========================================================================
 PAGE: https://harness.dbwarden.org/correctness/
 ========================================================================
 
@@ -186,16 +244,23 @@ Correctness is layered:
 3. The migration file is generated and has the expected artifacts.
 4. The database accepts and applies the SQL.
 5. The resulting state matches the reference schema.
-6. Reverse-engineered models can be loaded by a consumer project.
-7. Public diff reports no remaining operations.
-8. Rollback and reapplication preserve the expected history.
+6. The server enforces the constraints the models declared.
+7. Reverse-engineered models can be loaded by a consumer project.
+8. Public diff reports no remaining operations.
+9. Regenerating from unchanged models produces nothing at all.
+10. Rollback and reapplication preserve the expected history.
 
 A command exit code is therefore only one assertion in a passing test.
+
+Steps 6 and 9 are the two a shape comparison cannot reach. A schema can match
+the reference and still accept rows the models forbid, and it can be correct
+and still be rewritten on every deploy.
 
 ## Correctness documents
 
 - [Convergence Model](convergence.md)
 - [Round Trips](round-trips.md)
+- [Constraint Enforcement](enforcement.md)
 - [Semantic Drift](semantic-drift.md)
 - [Durability and Recovery](durability.md)
 - [Safety](safety.md)
@@ -353,30 +418,112 @@ PAGE: https://harness.dbwarden.org/coverage-matrix/
 # Harness Coverage Matrix
 
 The matrix separates provider lifecycle coverage from actual dbwarden migration
-coverage. A provider being ready is not evidence that migrations converge.
+coverage. A provider being ready is not evidence that migrations converge, and
+a migration applying is not evidence that the resulting schema constrains
+anything.
 
 | Area | SQLite | PostgreSQL | MySQL | MariaDB | ClickHouse |
 |---|---:|---:|---:|---:|---:|
 | Provider lifecycle | yes | yes | yes | yes | yes |
-| Initial migration round trip | yes | yes | yes | release-blocked on `0.16.5` | yes |
-| Version round trip | local | scheduled | experimental on `0.16.5` | experimental on `0.16.5` | scheduled |
+| Initial migration round trip | yes | yes | yes | yes | yes |
+| Version round trip | local | scheduled | scheduled | scheduled | scheduled |
 | Structural drift capture | yes | yes | yes | yes | yes |
-| Backend table metadata | limited | dialect-dependent | dialect-dependent | dialect-dependent | engine/order/partition keys |
-| Staged upgrade/reapply | yes | planned | planned | planned | planned |
-| Rollback execution | yes | planned | planned | planned | planned |
-| Failure recovery | partial | planned | planned | planned | planned |
+| Backend table metadata | table options, index DDL | dialect-dependent | dialect-dependent | dialect-dependent | engine/order/partition keys |
+| Constraint emission | yes | yes | yes | yes | n/a |
+| Constraint enforcement | yes | yes (14, 17) | yes | yes | n/a |
+| Regeneration produces nothing | yes | yes (14, 16, 17) | no | no | no |
+| Table rebuild preserves data | yes | n/a | n/a | n/a | recreate path |
+| Staged upgrade/reapply | yes | yes | planned | planned | yes |
+| Rollback execution | yes | yes | planned | planned | yes |
+| Failure recovery | partial | yes | planned | planned | yes |
+| Plugin objects on a live server | n/a | roles (create/alter) | no | no | no |
+| Adversarial scenarios | no | yes | no | no | yes |
+| Production lock/perf safety | no | yes | no | no | yes |
+
+Cells reading `no` are gaps in harness coverage, not known defects. Cells
+reading `n/a` describe a backend that has no such concept: ClickHouse has no
+`UNIQUE` or `CHECK` table constraints, and only SQLite reaches a schema change
+through a full table rebuild.
+
+## Semantics
+
+Added under `suites/semantics/`. These tests apply a migration and then write
+rows, because a constraint that a catalog reports but the server does not
+enforce is indistinguishable at runtime from one that was never created.
+
+- declared `uniques` are named in the generated SQL
+- declared `checks` are named in the generated SQL
+- a duplicate insert is refused
+- an insert violating a check expression is refused
+- regenerating from unchanged models produces no migration at all
+- dropping one constraint leaves the table's other constraints enforced
+- a SQLite table rebuild preserves the table's rows
+- reverse-engineered models keep the constraints and still converge
+
+## Plugin composition
+
+`suites/plugin_integration/test_pgsql_rbac_roles.py` installs
+`dbwarden-pgsql-rbac`, declares a role through the `pg_roles` configuration key
+and walks it through create, alter, and undeclare against PostgreSQL. Plugin
+ops only run once a plugin is loaded, which dbwarden's own suite avoids in
+order to stay hermetic, so this path exists nowhere else.
+
+## Adversarial Scenarios
+
+Under `suites/adversarial/`, run against real Docker databases.
+
+**PostgreSQL**
+
+- rename + type change simultaneously
+- rename + constraint change
+- drop + recreate with same signature
+- ambiguous rename detection
+- partition changes
+- generated columns
+- concurrent indexes (transactional contract)
+- enum changes
+
+**ClickHouse single-node**
+
+- ORDER BY changes
+- PARTITION BY changes
+- codec changes
+- projection changes
+- materialized-view SELECT changes
+- MV target changes
+- engine recreation with existing data
+- engine recreation + rollback
+- partially failed recreate
+
+**ClickHouse replicated cluster**
+
+- MergeTree → ReplicatedMergeTree
+- ReplicatedMergeTree → ReplicatedReplacingMergeTree
+- replicated materialized view
+- ON CLUSTER propagation
+- Keeper path changes
+
+**Production lock/performance safety**
+
+- PostgreSQL add column under concurrent workload
+- PostgreSQL CREATE INDEX lock classification
+- ClickHouse add column under concurrent workload
+- ClickHouse engine recreation downtime documentation
 
 ## Release Findings
 
-The current PyPI `dbwarden==0.16.5` release fails the MariaDB ecommerce round
-trip because its generated migration creates a child table before its parent
-tables. The harness intentionally keeps this test strict. The current core
-checkout contains the table-ordering fix and should be promoted before marking
-that cell passing.
+Findings observed against the published release are listed in
+[Known Findings by Release](known-compatibility.md). On `dbwarden==0.17.1` the
+semantics suite fails for SQLite constraints and for
+MySQL and MariaDB generated primary keys, and the plugin suite fails because
+configuration-declared objects are recreated on every migration. The fixes are
+in the core checkout; those cells describe the checkout until a release carries
+them.
 
 ## Execution Tiers
 
-- PR: non-integration checks and one PostgreSQL smoke round trip.
+- PR: non-integration checks, including the full SQLite semantics tier, and one
+  PostgreSQL smoke round trip.
 - Nightly: all declared backend versions and staged migration suites.
 - Release: clean wheel installation, required plugins, all provider versions,
   rollback/recovery, and retained failure artifacts.
@@ -450,8 +597,8 @@ uv run pytest -m "not integration and not slow"
 ```
 
 The suite includes harness unit tests, distribution checks, schema registry
-checks, artifact tests, parser tests, offline checks, and non-container
-durability baselines.
+checks, artifact tests, parser tests, offline checks, SQLite constraint
+semantics, and non-container durability baselines.
 
 ## All non-container tests
 
@@ -480,6 +627,22 @@ avoid starting unrelated containers in each job:
 ```bash
 DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_trip -k clickhouse
 ```
+
+## Certify a candidate wheel
+
+The harness tests the installed distribution, so pointing it at a build rather
+than at PyPI is a matter of installing that build first:
+
+```bash
+uv build --wheel -o dist                       # in the dbwarden checkout
+uv pip install --reinstall-package dbwarden dist/dbwarden-*.whl
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run --no-sync pytest -m integration
+```
+
+`--no-sync` keeps `uv run` from resolving the pinned release back over the
+candidate. Restore the declared release with `uv sync` when finished, and check
+`harness/provenance.py` output in artifacts if there is any doubt about which
+artifact a result belongs to.
 
 ## Select provider versions
 
@@ -691,39 +854,82 @@ For machine-readable documentation, use
 PAGE: https://harness.dbwarden.org/known-compatibility/
 ========================================================================
 
-# Known Compatibility Findings
+# Known Findings by Release
 
-The integration suite is intentionally strict. These findings are not marked
-as passing or silently skipped when the affected test is selected.
+The integration suite is intentionally strict. Findings are recorded here
+rather than being marked as passing or silently skipped when the affected test
+is selected.
+
+Each entry names the release it was observed on, the test that observes it, and
+the state of the fix. A finding is only removed once a published release passes
+the test that found it.
+
+## dbwarden `0.17.1`
+
+Observed with `dbwarden==0.17.1` installed from PyPI.
+
+- **Table constraints are rendered with PostgreSQL syntax on SQLite.** A model
+  declaring `uniques` or `checks` generates
+  `ALTER TABLE branches ADD CONSTRAINT uq_branches_code UNIQUE (code)`, which
+  SQLite cannot parse. `migrate` fails with
+  `near "UNIQUE": syntax error`, so the schema cannot be created at all.
+  Observed by `suites/semantics/test_constraint_semantics.py`. The core
+  checkout emits the constraints inside `CREATE TABLE`.
+- **A foreign key blocks generation on SQLite.** A model with a
+  `ForeignKey` column fails during `make-migrations` with
+  `RollbackContractError: Placeholder rollback for add_foreign_key on <table>
+  is not allowed`. The core checkout emits the reference inside `CREATE TABLE`
+  and applies cleanly.
+- **Configuration-declared objects are recreated on every migration.** The
+  PostgreSQL preamble - roles, domains, sequences, functions, triggers,
+  composite types, extended statistics, event triggers, default privileges - is
+  diffed against a hardcoded empty snapshot instead of the database, so every
+  declared object reads as new on every run. Applying the second migration
+  fails with `role "..." already exists`, and changing an attribute emits
+  `CREATE ROLE` where `ALTER ROLE` was needed. Observed by
+  `suites/plugin_integration/test_pgsql_rbac_roles.py` with
+  `dbwarden-pgsql-rbac` installed; the core checkout passes the real snapshot.
+- **Reverse-engineered models can reference `func` without importing it.** A
+  column whose default is `now()` is written as `default=func.now()` while
+  `func` is filtered out of the generated import line, so the artifact raises
+  `NameError: name 'func' is not defined` when dbwarden loads it. Reached
+  through dbwarden's own bookkeeping tables, which the supported flow excludes -
+  the generated file is unloadable only when they are included.
+- **Integer primary keys are not auto-incrementing on MySQL and MariaDB.** The
+  same model that produces `SERIAL` on PostgreSQL and `AUTOINCREMENT` on SQLite
+  produces a plain `id INTEGER NOT NULL PRIMARY KEY`, and the first insert that
+  omits the key fails with
+  `(1364, "Field 'id' doesn't have a default value")`. The migration itself
+  applies cleanly, so this surfaces only when a test writes a row.
 
 ## dbwarden `0.16.5`
 
-- PostgreSQL ecommerce migrations require `IndexSpec` metadata. SQLAlchemy-only
-  `Index` declarations are not emitted by the release; the reference schemas
-  use the public dbwarden metadata form.
-- PyPI `0.16.5` MariaDB migration generation orders `order_items` before its
-  referenced `orders` table, producing a foreign-key creation error. The core
-  checkout now topologically orders newly created tables; this is fixed for the
-  next release.
-- PyPI `0.16.5` MySQL reverse-engineering can report an incomplete `varchar`
-  type without a length during final diff, so the full-version MySQL round-trip
-  remains an experimental compatibility cell until the release is corrected.
-- PyPI `0.16.5` does not recognize the `clickhouse://` URL scheme when
-  converting to the `clickhousedb` SQLAlchemy dialect, corrupting credentials.
-  The core checkout now parses that scheme correctly; this is fixed for the
-  next release.
-- PyPI `0.16.5` reverse-engineered SQLite models report an informational
-  autoincrement drift. The core checkout now treats implicit integer primary
-  keys as equivalent; this is fixed for the next release.
+Historical. Retained because the coverage matrix still refers to these cells.
 
-Reproduce backend findings with:
+- PostgreSQL ecommerce migrations require `IndexSpec` metadata; SQLAlchemy-only
+  `Index` declarations were not emitted, so the reference schemas use the
+  public dbwarden metadata form.
+- MariaDB migration generation ordered `order_items` before its referenced
+  `orders` table, producing a foreign-key creation error.
+- MySQL reverse engineering could report an incomplete `varchar` type without a
+  length during a final diff.
+- The `clickhouse://` URL scheme was not recognized when converting to the
+  `clickhousedb` SQLAlchemy dialect, corrupting credentials.
+- Reverse-engineered SQLite models reported an informational autoincrement
+  drift for implicit integer primary keys.
+
+## Reproduce
 
 ```bash
-DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest suites/round_trip/test_backend_round_trip.py -q
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/semantics
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_trip
+uv run pytest -q suites/semantics -m "not integration"
 ```
 
-The provider lifecycle matrix is independent of these dbwarden release
-findings and passes all 14 declared backend/version cases.
+The last command needs no Docker and reproduces both SQLite findings.
+
+The provider lifecycle matrix is independent of these dbwarden release findings
+and passes all declared backend/version cases.
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/operations/artifacts/
@@ -777,7 +983,10 @@ The harness separates confidence from cost.
 ## Pull request gate
 
 `.github/workflows/pr-gate.yml` runs locked installation, Ruff, non-integration
-smoke tests, and a PostgreSQL smoke round trip.
+smoke tests, a PostgreSQL smoke round trip, and PostgreSQL constraint
+semantics. The non-integration job is a complete tier, not a sample: every
+SQLite case, including constraint enforcement and regeneration silence, runs
+without Docker.
 
 ## Backend matrix
 
@@ -785,13 +994,20 @@ smoke tests, and a PostgreSQL smoke round trip.
 selects one backend per job and passes the backend selection into pytest. This
 prevents a MySQL job from silently running ClickHouse or PostgreSQL work.
 
+Each relational backend also runs the semantics suite, so a job proves the
+server enforces what the models declare rather than only that the migration
+applied. ClickHouse skips it: it has no `UNIQUE` or `CHECK` table constraints.
+
 PostgreSQL and ClickHouse cells are strict. MySQL and MariaDB experimental
-cells are allowed to expose known PyPI 0.16.5 failures, while preserving their
-logs and artifacts.
+cells are allowed to expose known release failures while preserving their logs
+and artifacts; the current findings are listed in
+[Known Findings by Release](../known-compatibility.md).
 
 ## Plugin workflow
 
-`.github/workflows/plugins.yml` installs and exercises the public plugin path.
+`.github/workflows/plugins.yml` installs and exercises the public plugin path,
+including the role lifecycle that `dbwarden-pgsql-rbac` contributes, against a
+live PostgreSQL server.
 
 ## Distribution workflow
 
@@ -814,33 +1030,47 @@ PAGE: https://harness.dbwarden.org/operations/compatibility/
 
 # Compatibility Findings
 
-The harness is strict about observed behavior and explicit about release
-limitations.
+The harness is strict about observed behaviour and explicit about release
+limitations. Findings are listed per release in
+[Known Findings by Release](../known-compatibility.md); this page covers how to
+read and operate them.
 
-## PyPI 0.16.5
+## Current release under test
 
-- MariaDB migration generation can create a foreign-key child table before its
-  referenced parent table.
-- MySQL reverse engineering can report an incomplete `varchar` type during a
-  full-version final diff.
-- Default reverse engineering can include dbwarden bookkeeping tables in the
-  generated model file.
+`pyproject.toml` declares the dbwarden version the harness resolves by default.
+The findings recorded against it are summarized in the coverage matrix and
+detailed in the per-release page.
 
-The harness excludes dbwarden-owned tables for the supported application model
-round trip. The MariaDB generate-models case remains a strict XFAIL, and the
-MySQL and MariaDB full-version cells are experimental in CI.
+Findings observed on `0.17.1` cluster in two places: SQLite table constraints
+are rendered with PostgreSQL syntax that SQLite cannot parse, and generated
+integer primary keys are missing on MySQL and MariaDB. Both are invisible to a
+test that stops at a zero exit code, which is why the semantics suite writes
+rows.
 
 ## Reading experimental results
 
 An experimental failure is still a test result. It is allowed to avoid making
 the overall scheduled workflow red while the package defect is known. It must
-remain visible in logs, artifacts, and this document. When a new dbwarden
+remain visible in logs, artifacts, and the per-release page. When a new dbwarden
 release is available, rerun the cell. A strict unexpected pass also requires
 review so the compatibility policy can be updated deliberately.
+
+## Promoting a finding
+
+A finding is removed when a published release passes the test that produced it,
+not when a checkout does. The intermediate state - fixed in the core checkout,
+not yet released - is recorded in the finding itself, so a reader can tell
+"already fixed, waiting for a release" from "unresolved".
+
+To check a candidate before it ships, install the wheel into the harness
+environment and rerun the suite; see
+[Running Tests](../getting-started/running-tests.md#certify-a-candidate-wheel).
 
 ## Reproduction
 
 ```bash
+uv run pytest -q suites/semantics -m "not integration"
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/semantics
 DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_trip -k mariadb
 DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_trip -k mysql
 ```
@@ -1049,13 +1279,52 @@ PAGE: https://harness.dbwarden.org/providers/sqlite/
 
 # SQLite
 
-SQLite is the fast local provider. It uses a temporary file and does not require
-Docker. SQLite tests validate public CLI behavior, offline flows, long chains,
-baseline handling, table filtering, and repair after failed migrations.
+SQLite is a first-class dbwarden backend and a first-class harness provider. It
+needs no Docker, so it carries the fast tier: public CLI behaviour, offline
+flows, long migration chains, baseline handling, table filtering, repair after
+a failed migration, and constraint enforcement.
 
-SQLite is not a substitute for server-backed tests. It cannot certify
-PostgreSQL, MySQL, MariaDB, or ClickHouse SQL. Its value is deterministic local
-coverage for workflows that do not need a server-specific feature.
+## Provider contract
+
+`SQLiteProvider` answers the same contract as the container providers -
+`start`, `stop`, `reset`, `url`, `version`, `diagnostics` - so a suite can mix
+it with a server backend without special-casing construction:
+
+```python
+from infrastructure.providers import provider_for
+
+provider = provider_for("sqlite", "local")   # version is accepted and ignored
+url = provider.start()
+```
+
+Constructed without a path, the provider owns a temporary directory and removes
+it on `stop`. Pass a `Path` to keep the database file where a test can inspect
+it:
+
+```python
+from pathlib import Path
+from infrastructure.providers import SQLiteProvider
+
+provider = SQLiteProvider(Path(tmp_path) / "app.db")
+```
+
+`version()` reports the linked SQLite library version, which is a property of
+the Python runtime rather than of a pinned image. It is therefore recorded in
+artifacts but not used as a matrix dimension.
+
+## What SQLite can and cannot certify
+
+SQLite is not a substitute for a server-backed test. It cannot certify
+PostgreSQL, MySQL, MariaDB, or ClickHouse SQL, and a passing SQLite case never
+marks a server cell green in the coverage matrix.
+
+What it does certify is dbwarden's SQLite backend itself, including the parts
+no other backend exercises. SQLite has no `ALTER TABLE ... DROP CONSTRAINT`,
+so dbwarden reaches those changes by rebuilding the table: create a staging
+table with the new shape, copy the rows, drop the original, rename the staging
+table over it. That path has to preserve rows, preserve the constraints that
+were not part of the change, produce a symmetric rollback, and leave nothing
+behind - `suites/semantics/test_constraint_regeneration.py` asserts all four.
 
 ## Run
 
@@ -1063,6 +1332,7 @@ coverage for workflows that do not need a server-specific feature.
 uv run pytest -q suites/round_trip/test_sqlite_black_box.py
 uv run pytest -q suites/durability/test_sqlite_chain.py
 uv run pytest -q suites/offline/test_sqlite_offline.py
+uv run pytest -q suites/semantics -m "not integration"
 ```
 
 ========================================================================
@@ -1172,6 +1442,14 @@ PAGE: https://harness.dbwarden.org/reference/glossary/
 : Generate migrations, apply them, reverse engineer the live database, reload
   generated models, and require convergence.
 
+**Enforcement**
+: Evidence that the server refuses a write the declared constraints forbid, as
+  opposed to evidence that the constraint appears in a catalog.
+
+**Regeneration silence**
+: The requirement that regenerating from unchanged models produces no
+  migration. Its absence is schema churn: correct SQL, applied forever.
+
 **Semantic snapshot**
 : A normalized representation of live database objects used for comparison.
 
@@ -1192,7 +1470,7 @@ infrastructure/          Provider abstractions and Docker compose files
 schemas/                 Reference model fixtures and registry
 suites/                  Black-box test categories
 tests/                   Harness unit and contract tests
-tools/                   Migration player, drift checker, artifacts, reports, benchmarks
+tools/                   Migration player, drift checker, SQL probe, artifacts, reports, benchmarks
 snapshots/               Committed SQL baselines
 baselines/               Performance reference data
 docs/                    This documentation site
@@ -1240,6 +1518,59 @@ tool execution requires those external tools and is intentionally not claimed
 by the current suite.
 
 ========================================================================
+PAGE: https://harness.dbwarden.org/suites/adversarial/
+========================================================================
+
+# Adversarial Tests
+
+Round-trip tests ask whether the ordinary path works. The adversarial suite
+asks about the edges that break real deployments: renames that coincide with
+type changes, recreations that must preserve data, engine swaps, replicated
+DDL, and migrations running under concurrent load.
+
+## Files
+
+- `test_postgres_adversarial.py`
+- `test_clickhouse_adversarial.py`
+- `test_clickhouse_replicated_adversarial.py`
+- `test_lock_and_performance_safety.py`
+
+## Scenarios
+
+**PostgreSQL** — rename with a simultaneous type change, rename with a
+constraint change, drop and recreate with the same signature, ambiguous rename
+detection, partition changes, generated columns, concurrent index creation and
+its transactional contract, and enum changes.
+
+**ClickHouse, single node** — `ORDER BY` and `PARTITION BY` changes, codec and
+projection changes, materialized-view `SELECT` and target changes, engine
+recreation with existing data, engine recreation followed by rollback, and a
+partially failed recreate.
+
+**ClickHouse, replicated** — `MergeTree` to `ReplicatedMergeTree`,
+`ReplicatedMergeTree` to `ReplicatedReplacingMergeTree`, replicated
+materialized views, `ON CLUSTER` propagation, and Keeper path changes. These
+need `ClickHouseClusterProvider`: two servers and one Keeper on a shared Docker
+network.
+
+**Lock and performance safety** — adding a column under concurrent workload on
+PostgreSQL and ClickHouse, `CREATE INDEX` lock classification, and documented
+downtime for ClickHouse engine recreation.
+
+## Strict by intent
+
+These tests assert the behaviour dbwarden should have. When a release does not
+meet a contract, the test fails and the gap is recorded in
+[Coverage Matrix](../coverage-matrix.md) rather than being weakened into a
+passing assertion.
+
+## Run
+
+```bash
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -q suites/adversarial
+```
+
+========================================================================
 PAGE: https://harness.dbwarden.org/suites/distribution/
 ========================================================================
 
@@ -1269,19 +1600,57 @@ The distribution workflow installs the locked harness environment and runs
 these checks in GitHub Actions.
 
 ========================================================================
+PAGE: https://harness.dbwarden.org/suites/durability/
+========================================================================
+
+# Durability Tests
+
+An initial schema is created once. A production schema is operated for years.
+The durability suite exercises the history a user actually accumulates: long
+chains, partial rollbacks, replays, deleted files, and repair after a failure.
+
+## Files
+
+- `suites/durability/test_sqlite_chain.py`
+
+## Scenarios
+
+| Test | Question |
+| --- | --- |
+| `test_sqlite_migration_chain_can_apply_and_rollback` | Does a chain apply and unwind in order? |
+| `test_sqlite_fifty_migration_chain_supports_subset_replay` | Can a subset be rolled back and replayed without losing history? |
+| `test_applied_migration_file_deletion_is_detected` | Is a missing file for an applied version reported rather than ignored? |
+| `test_staged_schema_upgrade_rollback_and_reapply_converges` | Does the schema return to the same state after down and up? |
+| `test_failed_migration_can_be_repaired_and_replayed` | Can an operator recover from a statement the server rejected? |
+
+## Why SQLite carries this suite
+
+Durability is about history bookkeeping, not dialect. SQLite makes fifty
+migrations cheap and deterministic, so the chain length is realistic rather
+than symbolic. Provider-backed evolution, rollback, and reapply for the server
+backends live in `suites/round_trip/test_backend_evolution.py`, where the
+dialect actually matters.
+
+## Run
+
+```bash
+uv run pytest -q suites/durability
+```
+
+========================================================================
 PAGE: https://harness.dbwarden.org/suites/
 ========================================================================
 
 # Test Suites
 
-Suites are grouped by the confidence question they answer. Fast tests verify
-the harness itself. Integration tests verify real provider behavior. Slow tests
-measure durability and performance.
+Suites are grouped by the confidence question they answer.
 
 | Suite | Location | Main question |
 | --- | --- | --- |
 | Distribution | `suites/distribution` | Can a clean install expose the expected CLI? |
 | Round trips | `suites/round_trip` | Does a real database converge? |
+| Semantics | `suites/semantics` | Does the server enforce what the models declare, and stay converged? |
+| Adversarial | `suites/adversarial` | Do the dangerous edges of schema evolution behave? |
 | Durability | `suites/durability` | Does migration history survive rollback and failure? |
 | Safety | `suites/safety` | Are risky operations classified and guarded? |
 | Offline | `suites/offline` | Can local artifacts support offline workflows? |
@@ -1296,7 +1665,57 @@ Run one category with:
 uv run pytest -q suites/distribution
 ```
 
-Use the integration environment variable for provider categories.
+## Tiers
+
+Suites are not split by speed at the directory level; every suite splits along
+the same marker line.
+
+| Marker | Needs | Selected by |
+| --- | --- | --- |
+| none | SQLite or a generated artifact only | `pytest -m "not integration and not slow"` |
+| `integration` | A container from `infrastructure/providers` | `DBWARDEN_HARNESS_RUN_INTEGRATION=1 pytest -m integration` |
+| `slow` | A container, and time | Add `-m slow` explicitly |
+
+`conftest.py` skips `integration` tests unless
+`DBWARDEN_HARNESS_RUN_INTEGRATION=1` is set, so a machine without Docker still
+runs the fast tier to completion instead of erroring.
+
+Suites that can answer their question both ways keep cases in both tiers on
+purpose: the SQLite case fails first and explains itself without Docker, and
+the container case proves the behaviour on a real server.
+
+========================================================================
+PAGE: https://harness.dbwarden.org/suites/offline/
+========================================================================
+
+# Offline Tests
+
+Not every environment that generates a migration can reach the database that
+will receive it. Offline generation reads exported model state instead of a
+live server, which makes that state a trusted artifact - and a tampered or
+missing artifact must be detected rather than quietly used.
+
+## Files
+
+- `suites/offline/test_sqlite_offline.py`
+
+## Scenarios
+
+| Test | Question |
+| --- | --- |
+| `test_sqlite_offline_generation_uses_exported_model_state` | Does `make-migrations --offline` work from exported state alone? |
+| `test_offline_model_state_checksum_detects_tampering` | Is an edited state file detected? |
+| `test_deleted_model_state_is_recovered_from_applied_migrations` | Can state be rebuilt from applied migrations? |
+| `test_offline_generation_reports_absent_state` | Does generation without any state say so instead of inventing a baseline? |
+
+`tools/offline_integrity.py` writes and verifies the manifest the tamper test
+compares against.
+
+## Run
+
+```bash
+uv run pytest -q suites/offline
+```
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/suites/performance/
@@ -1342,7 +1761,8 @@ PAGE: https://harness.dbwarden.org/suites/plugins/
 
 # Plugin Tests
 
-Plugin tests validate the public installation and discovery path.
+Plugin tests validate the public installation and discovery path, and the
+behaviour of plugin-contributed objects against a real server.
 
 ## Declared plugins
 
@@ -1360,6 +1780,18 @@ Plugin tests validate the public installation and discovery path.
 lists discovered plugins, and inspects installed package metadata. Unit tests
 also verify command construction and explicit version pinning.
 
+`test_pgsql_rbac_roles.py` goes past discovery. It installs
+`dbwarden-pgsql-rbac`, declares a role through the `pg_roles` configuration key
+that plugin contributes, and walks the role through create, alter, and drop
+against PostgreSQL, reading `pg_roles` after each step.
+
+That path is only reachable here. A plugin's ops run only once the plugin is
+loaded, and dbwarden's own suite deliberately does not load plugins so it stays
+hermetic, so without a harness case the loaded path is untested on both sides.
+The alter step carries the most weight: a handler that emits only `CREATE ROLE`
+and `DROP ROLE` still converges across a create/drop pair, and only changing an
+attribute of an existing role exposes the gap.
+
 ## Run
 
 The full plugin installation test is integration marked because it installs
@@ -1369,8 +1801,9 @@ packages through the dbwarden CLI:
 DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/plugin_integration
 ```
 
-Plugin composition with real backend objects is the next expansion area. The
-current suite intentionally separates package discovery from backend behavior.
+Composition across several plugins at once - ordering, duplicate
+registrations, and version skew between them - remains the next expansion
+area.
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/suites/round-trip/
@@ -1408,6 +1841,105 @@ and public diff output. This catches failures where SQL execution succeeds but
 the representation used for the next migration is incomplete.
 
 ========================================================================
+PAGE: https://harness.dbwarden.org/suites/safety/
+========================================================================
+
+# Safety Tests
+
+A tool that guards destructive changes has to fail in the right places. The
+safety suite checks the refusals: commands that must not invent success, and
+destructive operations that must not proceed unattended.
+
+## Files
+
+- `suites/safety/test_cli_failures.py`
+
+## Scenarios
+
+| Test | Question |
+| --- | --- |
+| `test_invalid_cli_command_is_reported_without_synthetic_success` | Does an unknown command exit non-zero instead of printing help and succeeding? |
+| `test_stateful_commands_fail_without_a_consumer_configuration` | Does a command that needs configuration say so rather than guessing? |
+| `test_safety_check_reports_non_destructive_info_changes` | Are harmless changes classified as informational? |
+| `test_warning_level_destructive_migration_requires_force` | Is a destructive change refused until it is explicitly forced? |
+
+## Why failure assertions carry their own weight
+
+A test that only asserts a non-zero exit code also passes when the tool crashes
+for an unrelated reason. `harness/cli.py` therefore separates three outcomes:
+`require_success`, `require_clean` (success with an empty stderr), and
+`require_failure(*fragments)`, which additionally requires named text in the
+output. The destructive case uses it in that stronger form: refusing a
+`DROP TABLE` is only correct if the refusal says `require --force`, and the
+same command with `--force` then succeeds.
+
+## Run
+
+```bash
+uv run pytest -q suites/safety
+```
+
+========================================================================
+PAGE: https://harness.dbwarden.org/suites/semantics/
+========================================================================
+
+# Semantics Tests
+
+Structure is not behaviour. A migration can apply cleanly, and the catalog can
+report the object, while the database still accepts rows the models forbid.
+
+The semantics suite declares constraints through the public model API, applies
+the generated migration to a real server, and then tries to violate them.
+
+## Files
+
+- `test_constraint_semantics.py` checks that declared `uniques` and `checks`
+  reach the server and that the server enforces them.
+- `test_constraint_regeneration.py` checks that an applied schema stays
+  converged, and that dropping one constraint touches only that constraint.
+
+## Why enforcement and not inspection
+
+A constraint recorded in a catalog but not enforced is indistinguishable at
+runtime from one that was never created. Inspection cannot tell those apart;
+an `INSERT` can. Each assertion states what it expects the database to refuse
+and why:
+
+```python
+probe.assert_rejects(
+    "INSERT INTO branches (code) VALUES ('north')",
+    because="uq_branches_code makes branches.code unique",
+)
+```
+
+`tools/sql_probe.py` always rolls back, so a statement that unexpectedly
+succeeds leaves no row behind to confuse a later assertion.
+
+## Why regenerating must produce nothing
+
+The expensive failure here is not a broken migration, it is a confident one.
+If the snapshot of a live database does not describe it the way the models do,
+every later `make-migrations` proposes to "fix" a schema that was never wrong:
+dropping and recreating a unique constraint, rebuilding every foreign key and
+index, or rewriting a column's storage. Each run applies cleanly, so nothing
+fails. The schema just churns, holding locks, on every deploy.
+
+`test_unchanged_models_regenerate_nothing_on_postgres` is parametrized by
+server version on purpose. Catalog columns and their defaults move between
+major versions, so a snapshot query that quietly returns nothing on one of them
+produces churn on exactly that version and no other.
+
+## Run
+
+```bash
+uv run pytest -q suites/semantics -m "not integration"
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/semantics
+```
+
+The SQLite cases run in the fast tier because they need no container. The
+PostgreSQL, MySQL, and MariaDB cases carry the `integration` marker.
+
+========================================================================
 PAGE: https://harness.dbwarden.org/suites/sql-contracts/
 ========================================================================
 
@@ -1422,7 +1954,44 @@ baselines.
 - Snapshot files can be captured and compared.
 - Unified SQL differences are readable.
 - Approved snapshots can be written to a destination.
-- Committed baseline manifests remain available for review.
+- The committed baseline manifest matches the committed baselines.
+
+## Baselines are per release
+
+Generated SQL is a contract for one release, not for all time. A backend fix
+legitimately changes the bytes - dbwarden `0.17` emits `AUTOINCREMENT` for a
+SQLite integer primary key where `0.16` did not - and a baseline captured two
+releases ago would report every intentional improvement as a regression.
+
+Baselines therefore live under the version that produced them:
+
+```text
+snapshots/
+  SHA256SUMS.json
+  v0.16.5/sqlite/minimal.sql
+  v0.17.1/sqlite/minimal.sql
+```
+
+`SnapshotManager.baseline_for` resolves the directory from the installed
+dbwarden version, falling back to a `major.minor` series directory for releases
+that share one contract. When no baseline exists for the installed version the
+comparison is skipped rather than run against a foreign baseline, and the skip
+message names the file to approve.
+
+## Approving a new baseline
+
+```python
+from pathlib import Path
+from tools.snapshot_manager import SnapshotManager
+
+snapshots = Path("snapshots")
+# copy the generated migration to snapshots/v<version>/<backend>/<name>.sql first
+SnapshotManager().write_manifest(snapshots)
+```
+
+Approve deliberately, and only after a round-trip suite has proved the new SQL
+applies. An approved baseline records what a release does, not what it should
+do.
 
 ## Run
 
@@ -1431,7 +2000,7 @@ uv run pytest -q suites/sql_contract tests/test_tools.py tests/test_snapshot_man
 ```
 
 SQL snapshots are contracts, not substitutes for real database execution.
-Round-trip suites provide the execution proof.
+Round-trip and semantics suites provide the execution proof.
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/why-a-harness/

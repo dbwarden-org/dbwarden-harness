@@ -10,8 +10,8 @@ uv run pytest -m "not integration and not slow"
 ```
 
 The suite includes harness unit tests, distribution checks, schema registry
-checks, artifact tests, parser tests, offline checks, and non-container
-durability baselines.
+checks, artifact tests, parser tests, offline checks, SQLite constraint
+semantics, and non-container durability baselines.
 
 ## All non-container tests
 
@@ -40,6 +40,22 @@ avoid starting unrelated containers in each job:
 ```bash
 DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest -m integration suites/round_trip -k clickhouse
 ```
+
+## Certify a candidate wheel
+
+The harness tests the installed distribution, so pointing it at a build rather
+than at PyPI is a matter of installing that build first:
+
+```bash
+uv build --wheel -o dist                       # in the dbwarden checkout
+uv pip install --reinstall-package dbwarden dist/dbwarden-*.whl
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run --no-sync pytest -m integration
+```
+
+`--no-sync` keeps `uv run` from resolving the pinned release back over the
+candidate. Restore the declared release with `uv sync` when finished, and check
+`harness/provenance.py` output in artifacts if there is any doubt about which
+artifact a result belongs to.
 
 ## Select provider versions
 

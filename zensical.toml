@@ -74,6 +74,7 @@ Correctness = [
   {Overview = "correctness/index.md"},
   {"Convergence Model" = "correctness/convergence.md"},
   {"Round Trips" = "correctness/round-trips.md"},
+  {"Constraint Enforcement" = "correctness/enforcement.md"},
   {"Semantic Drift" = "correctness/semantic-drift.md"},
   {"Durability and Recovery" = "correctness/durability.md"},
   {"Safety" = "correctness/safety.md"},
@@ -85,10 +86,16 @@ Correctness = [
   {Overview = "suites/index.md"},
   {"Distribution" = "suites/distribution.md"},
   {"Round Trips" = "suites/round-trip.md"},
+  {"Semantics" = "suites/semantics.md"},
+  {"Adversarial" = "suites/adversarial.md"},
+  {"Durability" = "suites/durability.md"},
+  {"Safety" = "suites/safety.md"},
+  {"Offline" = "suites/offline.md"},
   {"Plugins" = "suites/plugins.md"},
   {"Adoption" = "suites/adoption.md"},
   {"SQL Contracts" = "suites/sql-contracts.md"},
   {"Performance" = "suites/performance.md"},
+  {"Generative" = "suites/generative.md"},
 ]
 
 [[project.nav]]
@@ -108,12 +115,15 @@ Operations = [
   {CI = "operations/ci.md"},
   {Troubleshooting = "operations/troubleshooting.md"},
   {"Compatibility Findings" = "operations/compatibility.md"},
+  {"Coverage Matrix" = "coverage-matrix.md"},
+  {"Known Findings by Release" = "known-compatibility.md"},
 ]
 
 [[project.nav]]
 Reference = [
   {"Environment Variables" = "reference/environment.md"},
   {"Fixture Contract" = "reference/fixture-contract.md"},
+  {"MCP Server" = "mcp-server.md"},
   {"Repository Layout" = "reference/layout.md"},
   {Glossary = "reference/glossary.md"},
 ]

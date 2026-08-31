@@ -69,4 +69,8 @@ The source repository is available at
 The product being tested is documented at
 [dbwarden-org/dbwarden](https://github.com/dbwarden-org/dbwarden).
 
-For machine-readable documentation, use
+For machine-readable documentation, use the [Environment Variables](reference/environment.md) reference and the [Repository Layout](reference/layout.md).
+
+The product being tested is
+[dbwarden](https://github.com/dbwarden-org/dbwarden), a declarative schema
+compiler for SQLAlchemy.
