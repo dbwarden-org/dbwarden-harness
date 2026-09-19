@@ -52,6 +52,7 @@
 - [Compatibility Findings](https://harness.dbwarden.org/operations/compatibility/): How release findings are read, operated, and promoted
 - [Coverage Matrix](https://harness.dbwarden.org/coverage-matrix/): What is covered per backend, and what is not
 - [Known Findings by Release](https://harness.dbwarden.org/known-compatibility/): Observed defects per published release, with the test that finds each
+- [Changelog](https://harness.dbwarden.org/changelog/): Notable harness changes, newest first
 
 ## Reference
 - [Environment Variables](https://harness.dbwarden.org/reference/environment/): Harness controls

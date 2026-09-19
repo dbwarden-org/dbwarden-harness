@@ -117,6 +117,7 @@ Operations = [
   {"Compatibility Findings" = "operations/compatibility.md"},
   {"Coverage Matrix" = "coverage-matrix.md"},
   {"Known Findings by Release" = "known-compatibility.md"},
+  {Changelog = "changelog.md"},
 ]
 
 [[project.nav]]
