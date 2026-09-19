@@ -28,14 +28,7 @@ def _assert_generated_model(generated: Path, expected_tables: tuple[str, ...]) -
     (
         ("postgres", "17"),
         ("mysql", "8.4"),
-        pytest.param(
-            "mariadb",
-            "11.4",
-            marks=pytest.mark.xfail(
-                reason="PyPI 0.16.5 orders MariaDB foreign-key tables incorrectly",
-                strict=True,
-            ),
-        ),
+        ("mariadb", "11.4"),
         ("clickhouse", "26.6"),
     ),
 )

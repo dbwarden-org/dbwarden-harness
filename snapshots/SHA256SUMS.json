@@ -1,4 +1,5 @@
 {
   "v0.16.5/sqlite/minimal.sql": "0ddb9697133a019711f134a8bfcc1ee4cbda59eeb3b0c2e9236c9e9776cf5351",
-  "v0.17.1/sqlite/minimal.sql": "0ddb9697133a019711f134a8bfcc1ee4cbda59eeb3b0c2e9236c9e9776cf5351"
+  "v0.17.1/sqlite/minimal.sql": "0ddb9697133a019711f134a8bfcc1ee4cbda59eeb3b0c2e9236c9e9776cf5351",
+  "v0.19.0/sqlite/minimal.sql": "09765c48bee0bcae3be6b194591c09f8fcb0ab7a937af2713c602d165869f661"
 }
