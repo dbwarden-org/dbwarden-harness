@@ -135,7 +135,7 @@ class ClickHouseTable:
             lines.append(f"            comment = {text!r}")
         return "\n".join(lines) + "\n"
 
-    def with_(self, **changes: Any) -> "ClickHouseTable":
+    def with_(self, **changes: Any) -> ClickHouseTable:
         """Return a copy with the named properties replaced.
 
         This is the primitive the change matrix is built on: ``before`` and

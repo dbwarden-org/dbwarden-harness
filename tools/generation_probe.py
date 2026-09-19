@@ -105,6 +105,7 @@ class GenerationProbe:
                 capture_output=True,
                 text=True,
                 timeout=timeout,
+                check=False,
             )
         return completed.returncode, completed.stdout, completed.stderr
 

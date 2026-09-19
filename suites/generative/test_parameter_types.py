@@ -22,7 +22,7 @@ import pytest
 
 from tools.case_runner import GenerationCase
 from tools.generation_probe import GenerationProbe
-from tools.model_source import ClickHouseTable, Column_, module
+from tools.model_source import ClickHouseTable, Column_
 
 pytestmark = pytest.mark.integration
 
