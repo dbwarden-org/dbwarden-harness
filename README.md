@@ -378,12 +378,12 @@ The workflows separate fast feedback from expensive certification:
 - `matrix.yml` runs backend-specific provider suites on schedule or manually.
 - `plugins.yml` checks public plugin installation and discovery.
 - `distribution.yml` checks the installed package and CLI contract against the
-  published wheel (`uv sync --no-sources`), unlike the other jobs which check
-  out the sibling dbwarden source.
+  published wheel, unlike the other jobs which test the sibling dbwarden source.
 - `performance.yml` runs opt in scale and benchmark suites.
 
-Every job except distribution checks out `dbwarden-org/dbwarden` next to the
-harness so the lockfile's path source resolves.
+Every job checks out both repositories as siblings at the workspace root, so
+the lockfile's `../dbwarden` path source resolves. Distribution then replaces
+the checkout with the published wheel, which is what it certifies.
 
 Experimental compatibility cells remain visible in the matrix. Their artifacts
 and reasons are retained rather than silently skipping the tests.

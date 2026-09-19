@@ -11,6 +11,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: harness
       - uses: actions/checkout@v4
         with:
           repository: dbwarden-org/dbwarden
@@ -19,10 +21,13 @@ jobs:
         with:
           version: latest
       - name: Install locked environment
+        working-directory: harness
         run: uv sync --locked
       - name: Lint
+        working-directory: harness
         run: uv run ruff check .
       - name: Unit and black-box smoke tests
+        working-directory: harness
         run: uv run pytest -m 'not integration and not slow'
 
   postgres-smoke:
@@ -30,6 +35,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: harness
       - uses: actions/checkout@v4
         with:
           repository: dbwarden-org/dbwarden
@@ -38,12 +45,15 @@ jobs:
         with:
           version: latest
       - name: Install locked environment
+        working-directory: harness
         run: uv sync --locked
       - name: PostgreSQL round trip
+        working-directory: harness
         env:
           DBWARDEN_HARNESS_RUN_INTEGRATION: "1"
         run: uv run pytest -m integration suites/round_trip/test_sqlite_black_box.py -k ecommerce -q
       - name: PostgreSQL constraint semantics
+        working-directory: harness
         env:
           DBWARDEN_HARNESS_RUN_INTEGRATION: "1"
         run: uv run pytest -m integration suites/semantics -k "postgres-17 or reverse" -q

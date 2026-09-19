@@ -24,6 +24,8 @@ jobs:
     continue-on-error: ${{ matrix.experimental }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: harness
       - uses: actions/checkout@v4
         with:
           repository: dbwarden-org/dbwarden
@@ -32,21 +34,24 @@ jobs:
         with:
           version: latest
       - name: Install locked environment
+        working-directory: harness
         run: uv sync --locked
       - name: Run provider-backed suites
+        working-directory: harness
         env:
           DBWARDEN_HARNESS_RUN_INTEGRATION: "1"
-          DBWARDEN_HARNESS_ARTIFACT_DIR: artifacts
+          DBWARDEN_HARNESS_ARTIFACT_DIR: harness/artifacts
         run: uv run pytest -m integration suites/round_trip -k "${{ matrix.backend }}" -q
       - name: Run constraint semantics
         if: matrix.backend != 'clickhouse'
+        working-directory: harness
         env:
           DBWARDEN_HARNESS_RUN_INTEGRATION: "1"
-          DBWARDEN_HARNESS_ARTIFACT_DIR: artifacts
+          DBWARDEN_HARNESS_ARTIFACT_DIR: harness/artifacts
         run: uv run pytest -m integration suites/semantics -k "${{ matrix.backend }}" -q
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: harness-${{ matrix.backend }}
-          path: artifacts
+          path: harness/artifacts

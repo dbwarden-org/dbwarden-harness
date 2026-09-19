@@ -11,6 +11,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: harness
       - uses: actions/checkout@v4
         with:
           repository: dbwarden-org/dbwarden
@@ -19,8 +21,10 @@ jobs:
         with:
           version: latest
       - name: Install locked environment
+        working-directory: harness
         run: uv sync --locked
       - name: Run scale and snapshot benchmarks
+        working-directory: harness
         env:
           DBWARDEN_HARNESS_RUN_SCALE: "1"
           DBWARDEN_HARNESS_RUN_500_MIGRATION: "1"
@@ -29,4 +33,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: harness-performance
-          path: benchmark.json
+          path: harness/benchmark.json
