@@ -1,7 +1,7 @@
 # dbwarden Test Harness Documentation
 > Full documentation for black-box dbwarden release validation
 > Source: https://harness.dbwarden.org
-> Pages: 45
+> Pages: 47
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/README/
@@ -82,6 +82,44 @@ behaviour rather than shape. `assert_rejects` states the write it expects the
 server to refuse and why; every probe rolls back, so a statement that
 unexpectedly succeeds leaves no row behind. Inspection can only report that a
 constraint exists - a probe reports whether it is enforced.
+
+## CaseRunner
+
+`tools/case_runner.py` runs `GenerationCase` objects (lists of model revisions)
+through `init → make-migrations → migrate` in parallel, one database per case.
+It records generated SQL, CLI streams, server acceptance, live schema, executed
+rollback, and both diffs. Used by the generative matrix suite to assert over
+the distribution of results rather than individual scenarios.
+
+## RoundTripDriver
+
+`tools/round_trip_driver.py` executes the full `declare → migrate →
+generate-models → adopt → diff + make-migrations` cycle. Reports convergence,
+unimportable generated modules, and bookkeeping-table leakage.
+
+## SnapshotManager
+
+`tools/snapshot_manager.py` manages versioned SQL contract baselines. Resolves
+the approved baseline for a specific dbwarden release, enabling per-version
+comparison rather than hardcoded references.
+
+## GenerationProbe
+
+`tools/generation_probe.py` re-runs a command with
+`extract_table_from_model` instrumented, recovering exceptions that
+`except Exception: return None` discards. Used only to explain a failure, never
+to make one pass.
+
+## ModelSource
+
+`tools/model_source.py` provides declarative model builders for matrix tests.
+`ClickHouseTable(...).with_(settings=...)` changes one line of the emitted
+module, so a matrix case cannot accidentally vary two things at once.
+
+## OfflineIntegrity
+
+`tools/offline_integrity.py` manages state manifest checksums for offline
+integrity verification.
 
 ## ArtifactCollector
 
@@ -512,13 +550,15 @@ Under `suites/adversarial/`, run against real Docker databases.
 
 ## Release Findings
 
-Findings observed against the published release are listed in
-[Known Findings by Release](known-compatibility.md). On `dbwarden==0.17.1` the
-semantics suite fails for SQLite constraints and for
-MySQL and MariaDB generated primary keys, and the plugin suite fails because
-configuration-declared objects are recreated on every migration. The fixes are
-in the core checkout; those cells describe the checkout until a release carries
-them.
+Findings observed against the release under test are listed in
+[Known Findings by Release](known-compatibility.md). The harness resolves
+`dbwarden` from the sibling `../dbwarden` checkout. On that `0.19.0` source the
+SQLite, PostgreSQL, MySQL, and MariaDB round-trip and semantics cells pass:
+table constraints are emitted inside `CREATE TABLE`, integer primary keys are
+`AUTO_INCREMENT` on MySQL and MariaDB, configuration-declared objects are
+diffed against the live snapshot, and PostgreSQL identity, index sorting,
+`NULLS NOT DISTINCT`, and storage parameters all round-trip. There are no open
+findings.
 
 ## Execution Tiers
 
@@ -848,7 +888,11 @@ The source repository is available at
 The product being tested is documented at
 [dbwarden-org/dbwarden](https://github.com/dbwarden-org/dbwarden).
 
-For machine-readable documentation, use
+For machine-readable documentation, use the [Environment Variables](reference/environment.md) reference and the [Repository Layout](reference/layout.md).
+
+The product being tested is
+[dbwarden](https://github.com/dbwarden-org/dbwarden), a declarative schema
+compiler for SQLAlchemy.
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/known-compatibility/
@@ -861,12 +905,75 @@ rather than being marked as passing or silently skipped when the affected test
 is selected.
 
 Each entry names the release it was observed on, the test that observes it, and
-the state of the fix. A finding is only removed once a published release passes
+the state of the fix. A finding is removed when the source under test passes
 the test that found it.
 
-## dbwarden `0.17.1`
+## dbwarden `0.19.0`
 
-Observed with `dbwarden==0.17.1` installed from PyPI.
+Tested against the local `../dbwarden` checkout, which the lockfile resolves
+through `[tool.uv.sources]`.
+
+### Resolved from `0.17.1`
+
+- **SQLite emits table constraints inside `CREATE TABLE`.** Declared `uniques`
+  and `checks` are applied and enforced by the server.
+  `suites/semantics/test_constraint_semantics.py` passes on SQLite and on the
+  real-server matrix.
+- **A foreign key no longer blocks generation on SQLite.** `make-migrations`
+  and `migrate` complete.
+- **Configuration-declared objects are diffed against the live snapshot.**
+  `suites/plugin_integration/test_pgsql_rbac_roles.py` creates, alters, and
+  undeclares a role without the second `migrate` failing with `already exists`.
+- **Reverse-engineered models import `func`.** Generated files load.
+- **MySQL and MariaDB integer primary keys are `AUTO_INCREMENT`.** Migrations
+  apply and inserts that omit the key succeed in
+  `test_constraints_are_enforced_on_real_servers`.
+- **MariaDB creates a valid lock table.** The v2 lock DDL fell back to the
+  SQLite templates because `mariadb` was not a dictionary key, so `migrate`
+  failed with
+  `BLOB/TEXT column 'namespace' used in key specification without a key length`.
+  Fixed in the checkout by aliasing the MariaDB templates to MySQL's.
+  Observed by `test_constraints_are_enforced_on_real_servers[mariadb-11.4]`.
+
+### Open
+
+None. The findings below were fixed in the checkout and their tests pass:
+
+- **A PostgreSQL identity column also rendered as `SERIAL`.** A model declaring
+  `pg.field(identity="always")` on an integer primary key emitted
+  `id SERIAL GENERATED ALWAYS AS IDENTITY PRIMARY KEY`, which PostgreSQL
+  rejects with `both default and identity specified`. `_postgres_serial_type`
+  now hands the base integer type back when the column carries identity
+  metadata. Verified by
+  `test_postgresql_identity_and_index_sort_round_trip`.
+- **MySQL and MariaDB convergence failed on a length-less `varchar`.** The
+  snapshot stores the base type and length separately, and the MySQL column
+  definition builder received the bare base type. `_snapshot_type_sql`
+  reattaches the length, and inherited charset/collation no longer counts as a
+  difference. Verified by `test_declared_database_versions_complete_a_round_trip`
+  for MySQL 8.0/8.4 and MariaDB 10.11/11.4, and by
+  `test_relational_backend_evolution_rolls_back_and_reapplies`.
+- **The last migration of a MySQL/MariaDB run was not recorded.** Each DDL
+  statement implicitly commits and the bookkeeping `INSERT` opened a
+  transaction nothing committed, so a two-migration run showed only the first
+  in `history` and re-applying failed with `Duplicate column name`. The run now
+  commits after recording. Verified by
+  `test_relational_backend_evolution_rolls_back_and_reapplies`.
+- **PostgreSQL index sort options were never captured.** `generate-models` and
+  the snapshot extractor called `pg_index_column_has_property` with a 0-based
+  key for a 1-based function, so every index reported no sorting.
+- **`NULLS NOT DISTINCT` was appended after `WHERE`.** PostgreSQL expects it
+  before `INCLUDE`/`WHERE`, so the DDL failed to parse.
+- **`pg_storage_params`, column `COLLATE`, and `COMPRESSION` were dropped.**
+  The model spec excluded them from `pg_table` and the generator never emitted
+  them. Verified by
+  `test_postgresql_advanced_indexes_and_table_props_round_trip`.
+
+## dbwarden `0.17.1` (superseded)
+
+Observed with `dbwarden==0.17.1` installed from PyPI. All findings below are
+fixed in `0.19.0`; the entries are retained as the historical record of what
+the release boundary caught.
 
 - **Table constraints are rendered with PostgreSQL syntax on SQLite.** A model
   declaring `uniques` or `checks` generates
@@ -930,6 +1037,64 @@ The last command needs no Docker and reproduces both SQLite findings.
 
 The provider lifecycle matrix is independent of these dbwarden release findings
 and passes all declared backend/version cases.
+
+========================================================================
+PAGE: https://harness.dbwarden.org/mcp-server/
+========================================================================
+
+# MCP Server
+
+The `mcp_server/` package provides an interactive testing server for consumer workflows. It manages workspaces, warm connection pools, and bug report collection.
+
+## Configuration
+
+The MCP server is configured through environment variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `DBWARDEN_HARNESS_ROOT` | `/tmp/dbwarden-mcp-workspaces` | Workspace root directory |
+| `DBWARDEN_HARNESS_BUG_REPORTS_DIR` | `bug-reports` | Directory for bug report artifacts |
+| `MCP_MAX_WORKSPACES` | `20` | Maximum concurrent workspaces |
+| `MCP_WARM_POOL_ENABLED` | `1` | Enable warm connection pool |
+| `MCP_WARM_POOL_POSTGRES` | `5` | Warm PostgreSQL connections |
+| `MCP_WARM_POOL_MYSQL` | `3` | Warm MySQL connections |
+| `MCP_WARM_POOL_MARIADB` | `3` | Warm MariaDB connections |
+| `MCP_WARM_POOL_CLICKHOUSE` | `3` | Warm ClickHouse connections |
+| `MCP_POSTGRES_VERSION` | `16` | PostgreSQL version |
+| `MCP_MYSQL_VERSION` | `8.0` | MySQL version |
+| `MCP_MARIADB_VERSION` | `11.4` | MariaDB version |
+| `MCP_CLICKHOUSE_VERSION` | `24.3` | ClickHouse version |
+
+## Running
+
+```bash
+python -m mcp_server
+```
+
+The server starts and listens for workspace requests. Each workspace gets its own database and configuration.
+
+## Architecture
+
+| Module | Role |
+|---|---|
+| `server.py` | Main server entry point |
+| `config.py` | Environment-based configuration |
+| `workspace.py` | Workspace lifecycle management |
+| `pool.py` | Warm connection pool for fast startup |
+| `bundle.py` | Workspace packaging and export |
+| `classifier.py` | Request classification |
+| `comparator.py` | Schema comparison |
+| `dumper.py` | Database state dumping |
+| `inspector.py` | Schema inspection |
+| `mutations.py` | Schema mutation operations |
+| `network.py` | Network utilities |
+| `track_a.py` / `track_b.py` | Test track definitions |
+| `models.py` | Data models |
+
+## See also
+
+- [Environment Variables](reference/environment.md)
+- [Repository Layout](reference/layout.md)
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/operations/artifacts/
@@ -1037,15 +1202,16 @@ read and operate them.
 
 ## Current release under test
 
-`pyproject.toml` declares the dbwarden version the harness resolves by default.
-The findings recorded against it are summarized in the coverage matrix and
-detailed in the per-release page.
+`pyproject.toml` declares the dbwarden version the harness resolves by default,
+and `[tool.uv.sources]` points it at the sibling `../dbwarden` checkout so the
+latest source is exercised. The findings recorded against it are summarized in
+the coverage matrix and detailed in the per-release page.
 
-Findings observed on `0.17.1` cluster in two places: SQLite table constraints
-are rendered with PostgreSQL syntax that SQLite cannot parse, and generated
-integer primary keys are missing on MySQL and MariaDB. Both are invisible to a
-test that stops at a zero exit code, which is why the semantics suite writes
-rows.
+The `0.17.1` findings are fixed on the `0.19.0` source: SQLite table
+constraints are emitted inside `CREATE TABLE`, integer primary keys carry
+`AUTO_INCREMENT` on MySQL and MariaDB, and configuration-declared objects are
+diffed against the live snapshot. The semantics and plugin suites confirm each
+one by writing rows and re-reading the catalog.
 
 ## Reading experimental results
 
@@ -1057,13 +1223,13 @@ review so the compatibility policy can be updated deliberately.
 
 ## Promoting a finding
 
-A finding is removed when a published release passes the test that produced it,
-not when a checkout does. The intermediate state - fixed in the core checkout,
-not yet released - is recorded in the finding itself, so a reader can tell
-"already fixed, waiting for a release" from "unresolved".
+A finding is removed when the source under test passes the test that produced
+it. Because the harness resolves the sibling checkout, a fix is credited as soon
+as it lands; the historical entry stays on the per-release page so a reader can
+still see what an earlier publication did.
 
-To check a candidate before it ships, install the wheel into the harness
-environment and rerun the suite; see
+To check a published candidate instead, install the wheel with
+`uv sync --no-sources` and rerun the suite; see
 [Running Tests](../getting-started/running-tests.md#certify-a-candidate-wheel).
 
 ## Reproduction
@@ -1358,9 +1524,9 @@ uv run pytest -m integration suites/round_trip/test_providers.py
 ## CI behavior
 
 The scheduled matrix workflow runs backend-specific jobs. PostgreSQL and
-ClickHouse are currently strict. MySQL and MariaDB have experimental cells for
-known PyPI 0.16.5 compatibility findings. Their tests run and upload artifacts;
-they are not silently omitted.
+ClickHouse are currently strict. MySQL and MariaDB cells run every declared
+case and upload artifacts; their earlier compatibility findings are fixed on
+the `0.19.0` source the harness resolves.
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/reference/environment/
@@ -1378,6 +1544,21 @@ PAGE: https://harness.dbwarden.org/reference/environment/
 | `DBWARDEN_HARNESS_BACKEND` | Limits provider matrix lifecycle cases to one backend. |
 | `DBWARDEN_HARNESS_VERSIONS` | Limits provider matrix lifecycle cases to listed versions. |
 | `DBWARDEN_HARNESS_ARTIFACT_DIR` | Writes failed test artifacts to the selected directory. |
+| `DBWARDEN_HARNESS_CLICKHOUSE_URL` | ClickHouse connection URL for generative suite. |
+| `DBWARDEN_HARNESS_CLICKHOUSE_VERSION` | ClickHouse image version for generative suite (default `26.6`). |
+| `DBWARDEN_HARNESS_ENFORCE_PERFORMANCE` | When set to `1`, the 500-migration benchmark asserts against a performance baseline instead of measuring only. |
+| `DBWARDEN_HARNESS_ROOT` | Workspace root directory for the MCP server (default `/tmp/dbwarden-mcp-workspaces`). |
+| `DBWARDEN_HARNESS_BUG_REPORTS_DIR` | Directory for MCP server bug report artifacts (default `bug-reports`). |
+| `MCP_MAX_WORKSPACES` | Maximum concurrent MCP workspaces (default `20`). |
+| `MCP_WARM_POOL_ENABLED` | Enable MCP warm connection pool (default `1`). |
+| `MCP_WARM_POOL_POSTGRES` | Number of warm PostgreSQL connections in MCP pool (default `5`). |
+| `MCP_WARM_POOL_MYSQL` | Number of warm MySQL connections in MCP pool (default `3`). |
+| `MCP_WARM_POOL_MARIADB` | Number of warm MariaDB connections in MCP pool (default `3`). |
+| `MCP_WARM_POOL_CLICKHOUSE` | Number of warm ClickHouse connections in MCP pool (default `3`). |
+| `MCP_POSTGRES_VERSION` | PostgreSQL version for MCP server (default `16`). |
+| `MCP_MYSQL_VERSION` | MySQL version for MCP server (default `8.0`). |
+| `MCP_MARIADB_VERSION` | MariaDB version for MCP server (default `11.4`). |
+| `MCP_CLICKHOUSE_VERSION` | ClickHouse version for MCP server (default `24.3`). |
 
 Variables beginning with `DBWARDEN_HARNESS_` are included in command artifact
 metadata so a run can be reproduced.
@@ -1457,6 +1638,22 @@ PAGE: https://harness.dbwarden.org/reference/glossary/
 : A matrix test that runs and retains evidence but is allowed to fail because a
   known package compatibility issue exists.
 
+**Fast tier**
+: Tests that run without Docker, using SQLite or generated artifacts only.
+  Selected by `pytest -m "not integration and not slow"`.
+
+**Integration tier**
+: Tests that require a container from `infrastructure/providers`. Selected by
+  `DBWARDEN_HARNESS_RUN_INTEGRATION=1 pytest -m integration`.
+
+**Slow tier**
+: Tests that require a container and significant time. Selected by adding
+  `-m slow` explicitly.
+
+**MCP server**
+: An interactive testing server that provides workspace management, warm
+  connection pools, and bug report collection for consumer workflows.
+
 ========================================================================
 PAGE: https://harness.dbwarden.org/reference/layout/
 ========================================================================
@@ -1467,6 +1664,7 @@ PAGE: https://harness.dbwarden.org/reference/layout/
 .github/workflows/       Pull request, matrix, plugin, distribution, performance CI
 harness/                 CLI, distribution, plugin, matrix, provenance helpers
 infrastructure/          Provider abstractions and Docker compose files
+mcp_server/              MCP server for interactive testing workspaces
 schemas/                 Reference model fixtures and registry
 suites/                  Black-box test categories
 tests/                   Harness unit and contract tests
@@ -1537,23 +1735,23 @@ DDL, and migrations running under concurrent load.
 
 ## Scenarios
 
-**PostgreSQL** — rename with a simultaneous type change, rename with a
+**PostgreSQL**; rename with a simultaneous type change, rename with a
 constraint change, drop and recreate with the same signature, ambiguous rename
 detection, partition changes, generated columns, concurrent index creation and
 its transactional contract, and enum changes.
 
-**ClickHouse, single node** — `ORDER BY` and `PARTITION BY` changes, codec and
+**ClickHouse, single node**; `ORDER BY` and `PARTITION BY` changes, codec and
 projection changes, materialized-view `SELECT` and target changes, engine
 recreation with existing data, engine recreation followed by rollback, and a
 partially failed recreate.
 
-**ClickHouse, replicated** — `MergeTree` to `ReplicatedMergeTree`,
+**ClickHouse, replicated**; `MergeTree` to `ReplicatedMergeTree`,
 `ReplicatedMergeTree` to `ReplicatedReplacingMergeTree`, replicated
 materialized views, `ON CLUSTER` propagation, and Keeper path changes. These
 need `ClickHouseClusterProvider`: two servers and one Keeper on a shared Docker
 network.
 
-**Lock and performance safety** — adding a column under concurrent workload on
+**Lock and performance safety**; adding a column under concurrent workload on
 PostgreSQL and ClickHouse, `CREATE INDEX` lock classification, and documented
 downtime for ClickHouse engine recreation.
 
@@ -1638,6 +1836,60 @@ uv run pytest -q suites/durability
 ```
 
 ========================================================================
+PAGE: https://harness.dbwarden.org/suites/generative/
+========================================================================
+
+# Generative Suite
+
+The generative suite answers "**which** of hundreds of nearly-identical declarations work?" and which of them dbwarden accepts, migrates, reports success for, and silently does nothing about.
+
+## Why it exists
+
+A scenario-based test writes one migration and asserts the resulting schema. That passes whether the change was applied or ignored, provided the assertion is written against the same model. The generative suite runs every case as a *pair* of model revisions and records whether a migration file was produced at all, so `no-migration` is a distinct, assertable outcome.
+
+## Test files
+
+| File | Question |
+|---|---|
+| `test_change_matrix.py` | Does changing one property of a table produce a migration? (40 properties) |
+| `test_rollback_inversion.py` | Does a migration's rollback invert *that* migration? |
+| `test_type_matrix.py` | Does every SQLAlchemy type map to a ClickHouse type, or get refused? |
+| `test_engine_matrix.py` | Does every engine builder produce DDL the server accepts, with its arguments intact? |
+| `test_field_and_index_matrix.py` | Are column modifiers, skip indexes and projections rendered faithfully and quoted? |
+| `test_injection.py` | Can model-supplied text close a DDL statement? |
+| `test_object_kinds.py` | Does every declarable object kind (dictionary, role, seed, data op, named collection, view) reach the database? |
+| `test_round_trip_clickhouse.py` | Do reverse-engineered models reproduce the same database? |
+| `test_discovery_silence.py` | Is an invalid model reported, or silently dropped? |
+
+## Infrastructure
+
+| Module | Role |
+|---|---|
+| `tools/model_source.py` | Declarative model builders. Changes one line per case so matrices cannot accidentally vary two things. |
+| `tools/case_runner.py` | Runs `GenerationCase` objects through init → make-migrations → migrate in parallel. Records all outcomes. |
+| `tools/round_trip_driver.py` | Full declare → migrate → generate-models → adopt → diff cycle. |
+| `tools/generation_probe.py` | Instruments extraction to recover silently discarded exceptions. |
+
+## Running
+
+```bash
+# Reuse a server you already have
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 \
+DBWARDEN_HARNESS_CLICKHOUSE_URL='clickhouse://default:@localhost:18123/default' \
+  uv run pytest suites/generative -q
+
+# Or let the suite start its own container
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest suites/generative -q
+```
+
+`DBWARDEN_HARNESS_CLICKHOUSE_VERSION` selects the image (default `26.6`). One container serves the whole session; each case gets its own database.
+
+## See also
+
+- [Test Suites Overview](index.md)
+- [Coverage Matrix](../coverage-matrix.md)
+
+========================================================================
 PAGE: https://harness.dbwarden.org/suites/
 ========================================================================
 
@@ -1658,6 +1910,7 @@ Suites are grouped by the confidence question they answer.
 | Adoption | `suites/adoption` | Can an existing schema be handed to dbwarden? |
 | SQL contracts | `suites/sql_contract` | Is generated output deterministic and approved? |
 | Performance | `suites/performance` | Does scale remain within the measured budget? |
+| Generative | `suites/generative` | Which of hundreds of nearly-identical declarations work? |
 
 Run one category with:
 
@@ -1754,6 +2007,14 @@ DBWARDEN_HARNESS_RUN_500_MIGRATION=1 uv run pytest suites/performance/test_conve
 The benchmark is opt in because it is intentionally expensive. Results should
 be compared on the same Python, filesystem, dbwarden version, and machine
 class. The repository baseline is a reference measurement, not a universal SLA.
+
+To assert against a performance baseline (fail if regression detected) instead
+of measuring only:
+
+```bash
+DBWARDEN_HARNESS_RUN_500_MIGRATION=1 DBWARDEN_HARNESS_ENFORCE_PERFORMANCE=1 \
+  uv run pytest suites/performance/test_convergence_500.py -s
+```
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/suites/plugins/
@@ -1959,8 +2220,8 @@ baselines.
 ## Baselines are per release
 
 Generated SQL is a contract for one release, not for all time. A backend fix
-legitimately changes the bytes - dbwarden `0.17` emits `AUTOINCREMENT` for a
-SQLite integer primary key where `0.16` did not - and a baseline captured two
+legitimately changes the bytes - dbwarden `0.19` emits `AUTOINCREMENT` for a
+SQLite integer primary key where `0.17` did not - and a baseline captured two
 releases ago would report every intentional improvement as a regression.
 
 Baselines therefore live under the version that produced them:
@@ -1970,6 +2231,7 @@ snapshots/
   SHA256SUMS.json
   v0.16.5/sqlite/minimal.sql
   v0.17.1/sqlite/minimal.sql
+  v0.19.0/sqlite/minimal.sql
 ```
 
 `SnapshotManager.baseline_for` resolves the directory from the installed

@@ -5,12 +5,75 @@ rather than being marked as passing or silently skipped when the affected test
 is selected.
 
 Each entry names the release it was observed on, the test that observes it, and
-the state of the fix. A finding is only removed once a published release passes
+the state of the fix. A finding is removed when the source under test passes
 the test that found it.
 
-## dbwarden `0.17.1`
+## dbwarden `0.19.0`
 
-Observed with `dbwarden==0.17.1` installed from PyPI.
+Tested against the local `../dbwarden` checkout, which the lockfile resolves
+through `[tool.uv.sources]`.
+
+### Resolved from `0.17.1`
+
+- **SQLite emits table constraints inside `CREATE TABLE`.** Declared `uniques`
+  and `checks` are applied and enforced by the server.
+  `suites/semantics/test_constraint_semantics.py` passes on SQLite and on the
+  real-server matrix.
+- **A foreign key no longer blocks generation on SQLite.** `make-migrations`
+  and `migrate` complete.
+- **Configuration-declared objects are diffed against the live snapshot.**
+  `suites/plugin_integration/test_pgsql_rbac_roles.py` creates, alters, and
+  undeclares a role without the second `migrate` failing with `already exists`.
+- **Reverse-engineered models import `func`.** Generated files load.
+- **MySQL and MariaDB integer primary keys are `AUTO_INCREMENT`.** Migrations
+  apply and inserts that omit the key succeed in
+  `test_constraints_are_enforced_on_real_servers`.
+- **MariaDB creates a valid lock table.** The v2 lock DDL fell back to the
+  SQLite templates because `mariadb` was not a dictionary key, so `migrate`
+  failed with
+  `BLOB/TEXT column 'namespace' used in key specification without a key length`.
+  Fixed in the checkout by aliasing the MariaDB templates to MySQL's.
+  Observed by `test_constraints_are_enforced_on_real_servers[mariadb-11.4]`.
+
+### Open
+
+None. The findings below were fixed in the checkout and their tests pass:
+
+- **A PostgreSQL identity column also rendered as `SERIAL`.** A model declaring
+  `pg.field(identity="always")` on an integer primary key emitted
+  `id SERIAL GENERATED ALWAYS AS IDENTITY PRIMARY KEY`, which PostgreSQL
+  rejects with `both default and identity specified`. `_postgres_serial_type`
+  now hands the base integer type back when the column carries identity
+  metadata. Verified by
+  `test_postgresql_identity_and_index_sort_round_trip`.
+- **MySQL and MariaDB convergence failed on a length-less `varchar`.** The
+  snapshot stores the base type and length separately, and the MySQL column
+  definition builder received the bare base type. `_snapshot_type_sql`
+  reattaches the length, and inherited charset/collation no longer counts as a
+  difference. Verified by `test_declared_database_versions_complete_a_round_trip`
+  for MySQL 8.0/8.4 and MariaDB 10.11/11.4, and by
+  `test_relational_backend_evolution_rolls_back_and_reapplies`.
+- **The last migration of a MySQL/MariaDB run was not recorded.** Each DDL
+  statement implicitly commits and the bookkeeping `INSERT` opened a
+  transaction nothing committed, so a two-migration run showed only the first
+  in `history` and re-applying failed with `Duplicate column name`. The run now
+  commits after recording. Verified by
+  `test_relational_backend_evolution_rolls_back_and_reapplies`.
+- **PostgreSQL index sort options were never captured.** `generate-models` and
+  the snapshot extractor called `pg_index_column_has_property` with a 0-based
+  key for a 1-based function, so every index reported no sorting.
+- **`NULLS NOT DISTINCT` was appended after `WHERE`.** PostgreSQL expects it
+  before `INCLUDE`/`WHERE`, so the DDL failed to parse.
+- **`pg_storage_params`, column `COLLATE`, and `COMPRESSION` were dropped.**
+  The model spec excluded them from `pg_table` and the generator never emitted
+  them. Verified by
+  `test_postgresql_advanced_indexes_and_table_props_round_trip`.
+
+## dbwarden `0.17.1` (superseded)
+
+Observed with `dbwarden==0.17.1` installed from PyPI. All findings below are
+fixed in `0.19.0`; the entries are retained as the historical record of what
+the release boundary caught.
 
 - **Table constraints are rendered with PostgreSQL syntax on SQLite.** A model
   declaring `uniques` or `checks` generates

@@ -14,8 +14,8 @@ baselines.
 ## Baselines are per release
 
 Generated SQL is a contract for one release, not for all time. A backend fix
-legitimately changes the bytes - dbwarden `0.17` emits `AUTOINCREMENT` for a
-SQLite integer primary key where `0.16` did not - and a baseline captured two
+legitimately changes the bytes - dbwarden `0.19` emits `AUTOINCREMENT` for a
+SQLite integer primary key where `0.17` did not - and a baseline captured two
 releases ago would report every intentional improvement as a regression.
 
 Baselines therefore live under the version that produced them:
@@ -25,6 +25,7 @@ snapshots/
   SHA256SUMS.json
   v0.16.5/sqlite/minimal.sql
   v0.17.1/sqlite/minimal.sql
+  v0.19.0/sqlite/minimal.sql
 ```
 
 `SnapshotManager.baseline_for` resolves the directory from the installed

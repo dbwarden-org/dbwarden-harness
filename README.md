@@ -196,6 +196,10 @@ uv venv
 uv sync
 ```
 
+The lockfile resolves `dbwarden` from the sibling `../dbwarden` checkout, so the
+harness tests the latest source. Keep that repository next to this one, or run
+`uv sync --no-sources` to fall back to the published wheel.
+
 The project requires Python 3.12 or newer. Database drivers and Testcontainers
 dependencies are installed by the project configuration.
 
@@ -373,32 +377,39 @@ The workflows separate fast feedback from expensive certification:
 - `pr-gate.yml` runs lint, smoke tests, and a PostgreSQL integration check.
 - `matrix.yml` runs backend-specific provider suites on schedule or manually.
 - `plugins.yml` checks public plugin installation and discovery.
-- `distribution.yml` checks the installed package and CLI contract.
+- `distribution.yml` checks the installed package and CLI contract against the
+  published wheel (`uv sync --no-sources`), unlike the other jobs which check
+  out the sibling dbwarden source.
 - `performance.yml` runs opt in scale and benchmark suites.
+
+Every job except distribution checks out `dbwarden-org/dbwarden` next to the
+harness so the lockfile's path source resolves.
 
 Experimental compatibility cells remain visible in the matrix. Their artifacts
 and reasons are retained rather than silently skipping the tests.
 
 ## Compatibility findings
 
-The current PyPI `dbwarden` 0.17.1 package has known findings:
+The harness resolves dbwarden from the sibling `../dbwarden` checkout through
+`[tool.uv.sources]`, so it exercises the latest source rather than a published
+wheel. Every finding recorded for the published `0.17.1` wheel is fixed in this
+checkout, and the PostgreSQL, MySQL, and MariaDB round-trip findings are fixed
+too:
 
-- SQLite renders declared `uniques` and `checks` as
-  `ALTER TABLE ... ADD CONSTRAINT`, which SQLite cannot parse, so `migrate`
-  fails and the schema is never created.
-- A model with a foreign key fails during `make-migrations` on SQLite with a
-  rollback-contract error.
-- MySQL and MariaDB render an integer primary key without `AUTO_INCREMENT`, so
-  the migration applies and the first insert that omits the key fails.
-- Configuration-declared objects - roles, domains, sequences, functions,
-  triggers - are diffed against an empty snapshot, so every generation
-  recreates them and the second `migrate` fails with `already exists`.
-- Reverse-engineered models can reference `func` without importing it, making
-  the generated file unloadable when dbwarden's own tables are included.
+- SQLite emits declared `uniques` and `checks` inside `CREATE TABLE`, so
+  `migrate` succeeds and the server enforces them.
+- A model with a foreign key generates and applies cleanly on SQLite.
+- MySQL and MariaDB render integer primary keys as `AUTO_INCREMENT`, so an
+  insert that omits the key succeeds.
+- Configuration-declared objects are diffed against the live snapshot, so the
+  second `migrate` no longer fails with `already exists`.
+- Reverse-engineered models import `func`, so the generated files load.
+- PostgreSQL identity columns, index sorting, `NULLS NOT DISTINCT`, and storage
+  parameters round-trip.
 
-Each finding names the test that observes it and the state of its fix in
-`docs/known-compatibility.md`. Reproduce the two SQLite findings without
-Docker:
+There are no open findings on the current source. Full details and the tests
+that observe each behaviour are in `docs/known-compatibility.md`. The SQLite
+findings reproduce without Docker:
 
 ```bash
 uv run pytest -q suites/semantics -m "not integration"

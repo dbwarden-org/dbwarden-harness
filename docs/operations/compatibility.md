@@ -7,15 +7,16 @@ read and operate them.
 
 ## Current release under test
 
-`pyproject.toml` declares the dbwarden version the harness resolves by default.
-The findings recorded against it are summarized in the coverage matrix and
-detailed in the per-release page.
+`pyproject.toml` declares the dbwarden version the harness resolves by default,
+and `[tool.uv.sources]` points it at the sibling `../dbwarden` checkout so the
+latest source is exercised. The findings recorded against it are summarized in
+the coverage matrix and detailed in the per-release page.
 
-Findings observed on `0.17.1` cluster in two places: SQLite table constraints
-are rendered with PostgreSQL syntax that SQLite cannot parse, and generated
-integer primary keys are missing on MySQL and MariaDB. Both are invisible to a
-test that stops at a zero exit code, which is why the semantics suite writes
-rows.
+The `0.17.1` findings are fixed on the `0.19.0` source: SQLite table
+constraints are emitted inside `CREATE TABLE`, integer primary keys carry
+`AUTO_INCREMENT` on MySQL and MariaDB, and configuration-declared objects are
+diffed against the live snapshot. The semantics and plugin suites confirm each
+one by writing rows and re-reading the catalog.
 
 ## Reading experimental results
 
@@ -27,13 +28,13 @@ review so the compatibility policy can be updated deliberately.
 
 ## Promoting a finding
 
-A finding is removed when a published release passes the test that produced it,
-not when a checkout does. The intermediate state - fixed in the core checkout,
-not yet released - is recorded in the finding itself, so a reader can tell
-"already fixed, waiting for a release" from "unresolved".
+A finding is removed when the source under test passes the test that produced
+it. Because the harness resolves the sibling checkout, a fix is credited as soon
+as it lands; the historical entry stays on the per-release page so a reader can
+still see what an earlier publication did.
 
-To check a candidate before it ships, install the wheel into the harness
-environment and rerun the suite; see
+To check a published candidate instead, install the wheel with
+`uv sync --no-sources` and rerun the suite; see
 [Running Tests](../getting-started/running-tests.md#certify-a-candidate-wheel).
 
 ## Reproduction

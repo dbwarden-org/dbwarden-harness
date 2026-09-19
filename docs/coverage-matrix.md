@@ -95,13 +95,15 @@ Under `suites/adversarial/`, run against real Docker databases.
 
 ## Release Findings
 
-Findings observed against the published release are listed in
-[Known Findings by Release](known-compatibility.md). On `dbwarden==0.17.1` the
-semantics suite fails for SQLite constraints and for
-MySQL and MariaDB generated primary keys, and the plugin suite fails because
-configuration-declared objects are recreated on every migration. The fixes are
-in the core checkout; those cells describe the checkout until a release carries
-them.
+Findings observed against the release under test are listed in
+[Known Findings by Release](known-compatibility.md). The harness resolves
+`dbwarden` from the sibling `../dbwarden` checkout. On that `0.19.0` source the
+SQLite, PostgreSQL, MySQL, and MariaDB round-trip and semantics cells pass:
+table constraints are emitted inside `CREATE TABLE`, integer primary keys are
+`AUTO_INCREMENT` on MySQL and MariaDB, configuration-declared objects are
+diffed against the live snapshot, and PostgreSQL identity, index sorting,
+`NULLS NOT DISTINCT`, and storage parameters all round-trip. There are no open
+findings.
 
 ## Execution Tiers
 
