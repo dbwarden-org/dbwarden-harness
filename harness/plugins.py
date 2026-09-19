@@ -10,6 +10,7 @@ REQUIRED_PLUGINS = (
     "dbwarden-pgsql-extensions",
     "dbwarden-ch-rbac",
     "dbwarden-fastapi",
+    "dbwarden-redis",
     "dbwarden-sandbox",
     "dbwarden-seeds",
 )
