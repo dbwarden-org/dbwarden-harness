@@ -24,6 +24,10 @@ jobs:
     continue-on-error: ${{ matrix.experimental }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: dbwarden-org/dbwarden
+          path: dbwarden
       - uses: astral-sh/setup-uv@v5
         with:
           version: latest

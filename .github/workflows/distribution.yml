@@ -15,7 +15,9 @@ jobs:
         with:
           version: latest
       - name: Install locked harness
-        run: uv sync --locked
+        # Certification runs against the published wheel, not the sibling
+        # checkout, so bypass the path source in [tool.uv.sources].
+        run: uv sync --locked --no-sources
       - name: Verify installed distribution
         run: uv run pytest -q tests/test_distribution.py tests/test_distribution_smoke.py
       - name: Verify CLI contract
