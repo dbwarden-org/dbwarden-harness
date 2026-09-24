@@ -10,18 +10,18 @@ def load_junit_report(path: Path) -> dict[str, Any]:
     import xml.etree.ElementTree as ET
 
     root = ET.parse(path).getroot()
+    suites = [root] if root.tag == "testsuite" else root.findall(".//testsuite")
+    leaves = [suite for suite in suites if suite.find("testsuite") is None]
     return {
-        "tests": int(root.attrib.get("tests", 0)),
-        "failures": int(root.attrib.get("failures", 0)),
-        "errors": int(root.attrib.get("errors", 0)),
-        "skipped": int(root.attrib.get("skipped", 0)),
+        **{key: int(root.attrib[key]) if key in root.attrib else sum(int(suite.attrib.get(key, 0)) for suite in leaves)
+           for key in ("tests", "failures", "errors", "skipped")},
         "suites": [
             {
                 "name": suite.attrib.get("name", ""),
                 "tests": int(suite.attrib.get("tests", 0)),
                 "failures": int(suite.attrib.get("failures", 0)),
             }
-            for suite in root.findall(".//testsuite")
+            for suite in leaves
         ],
     }
 
