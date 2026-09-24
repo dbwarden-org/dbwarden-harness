@@ -10,3 +10,5 @@ build/
 site/
 *.egg-info/
 .env
+.audit-*.log
+.data-*.log
