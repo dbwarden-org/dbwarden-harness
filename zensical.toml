@@ -110,6 +110,7 @@ Databases = [
 
 [[project.nav]]
 Operations = [
+  {"Documentation and API Audit" = "audit.md"},
   {"Failure Artifacts" = "operations/artifacts.md"},
   {"Release Provenance" = "operations/provenance.md"},
   {CI = "operations/ci.md"},
@@ -117,10 +118,12 @@ Operations = [
   {"Compatibility Findings" = "operations/compatibility.md"},
   {"Coverage Matrix" = "coverage-matrix.md"},
   {"Known Findings by Release" = "known-compatibility.md"},
+  {Changelog = "changelog.md"},
 ]
 
 [[project.nav]]
 Reference = [
+  {"Python API" = "reference/python-api.md"},
   {"Environment Variables" = "reference/environment.md"},
   {"Fixture Contract" = "reference/fixture-contract.md"},
   {"MCP Server" = "mcp-server.md"},
