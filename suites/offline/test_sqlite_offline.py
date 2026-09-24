@@ -69,5 +69,5 @@ def test_offline_generation_reports_absent_state(tmp_path: Path):
 
     result = player.cli.run("make-migrations", "offline", "--offline", check=False)
 
-    assert "model_state.primary.json not found" in result.output
+    result.require_failure("No model state found", "export-models")
     assert not tuple((tmp_path / "migrations").rglob("*.sql"))
