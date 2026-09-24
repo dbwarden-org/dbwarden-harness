@@ -291,6 +291,8 @@ The harness validates more than a zero exit code. It checks:
 - A public diff reports no remaining operations
 - The server refuses rows the declared constraints forbid
 - Regenerating from unchanged models produces no second migration
+- Declarative data bundles apply, roll back, reapply, and reject tampered artifacts (`suites/offline/test_data_migrations.py`)
+- Severity-scoped offline generation defers at ceilings, resumes with valid state, and reconciles real Git merges (`suites/safety/test_scoped_offline.py`)
 
 The generate-models suite excludes dbwarden-owned bookkeeping tables from the
 application model path. The generated artifact is still checked for content,
