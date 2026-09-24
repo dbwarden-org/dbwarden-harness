@@ -1,4 +1,5 @@
 import json
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -23,7 +24,12 @@ def workspace(tmp_path, monkeypatch):
     return ws
 
 
-@pytest.mark.parametrize("path", ["../outside.txt", "../../escape", "/outside.txt", "C:/outside.txt"])
+@pytest.mark.parametrize("path", [
+    "../outside.txt",
+    "../../escape",
+    "/outside.txt",
+    pytest.param("C:/outside.txt", marks=pytest.mark.skipif(os.name != "nt", reason="drive-letter paths are only absolute on Windows")),
+])
 def test_workspace_files_reject_escape(workspace, path):
     for call in (lambda: server.write_model_file("unit", path, "bad"), lambda: server.read_file("unit", path)):
         with pytest.raises(ValueError, match="inside the workspace"):
