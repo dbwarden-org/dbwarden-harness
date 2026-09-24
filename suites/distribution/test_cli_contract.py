@@ -16,6 +16,11 @@ def test_public_cli_help_has_core_commands(tmp_path: Path):
         "export-models",
         "generate-models",
         "check-impact",
+        "merge",
+        "rebase",
+        "reconcile",
+        "lock-status",
+        "unlock",
     ):
         assert command in result.stdout
 

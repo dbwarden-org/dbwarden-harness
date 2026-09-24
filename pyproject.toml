@@ -5,7 +5,7 @@ description = "Black-box integration and distribution harness for dbwarden"
 readme = "README.md"
 requires-python = ">=3.12.7"
 dependencies = [
-    "dbwarden[clickhouse,mysql,postgres]>=0.17.1",
+    "dbwarden[clickhouse,mysql,postgres]>=0.19.0",
     "testcontainers>=4.10",
     "mcp>=1.6.0,<2.0",
 ]
