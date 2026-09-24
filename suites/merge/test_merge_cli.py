@@ -80,16 +80,16 @@ def test_unlock_fails_without_project(tmp_path: Path):
 
 
 def test_merge_handles_dirty_tree_without_git(tmp_path: Path):
-    """merge exits 0 with a warning when the working tree is dirty (no git repo)."""
+    """merge exits non-zero with a clear error when the working tree is dirty (no git repo)."""
     player = MigrationPlayer(f"sqlite:///{tmp_path / 'app.db'}", tmp_path)
     player.write_model_source("", filename="app/__init__.py")
     player.write_model_source(MINIMAL_SQLITE_MODELS, filename="app/models.py")
     player.init_and_configure(model_paths=("app",))
 
     result = player.cli.run("merge", check=False)
-    assert result.returncode == 0
+    assert result.returncode != 0
     output = result.output.lower()
-    assert "clean" in output or "nothing" in output or "no divergent" in output
+    assert "clean" in output
 
 
 def test_rebase_handles_no_migrations_without_git(tmp_path: Path):
@@ -167,7 +167,6 @@ def test_status_all_environments_outside_project(tmp_path: Path):
     assert result.returncode != 0
 
 
-@pytest.mark.xfail(reason="dbwarden bug: 'info' not imported in _show_all_environments_status")
 def test_status_all_environments_inside_project(tmp_path: Path):
     player = MigrationPlayer(f"sqlite:///{tmp_path / 'app.db'}", tmp_path)
     player.write_model_source("", filename="app/__init__.py")
