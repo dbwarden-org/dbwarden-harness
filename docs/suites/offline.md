@@ -8,6 +8,7 @@ missing artifact must be detected rather than quietly used.
 ## Files
 
 - `suites/offline/test_sqlite_offline.py`
+- `suites/offline/test_data_migrations.py` — declarative data bundles, transitions, merges, tamper detection, and rollback/reapply through the public CLI
 
 ## Scenarios
 

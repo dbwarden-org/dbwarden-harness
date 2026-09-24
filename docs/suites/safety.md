@@ -7,6 +7,7 @@ destructive operations that must not proceed unattended.
 ## Files
 
 - `suites/safety/test_cli_failures.py`
+- `suites/safety/test_scoped_offline.py` — severity-scoped offline generation, exit-3 deferral, malformed plans, and Git merge reconciliation
 
 ## Scenarios
 
