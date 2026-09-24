@@ -131,16 +131,14 @@ Reference = [
   {Glossary = "reference/glossary.md"},
 ]
 
-[project.markdown_extensions]
-"seoslug.contrib.zensical" = {
-  canonical_host = "harness.dbwarden.org",
-  public_base_url = "https://harness.dbwarden.org/",
-  site_name = "dbwarden Test Harness Documentation",
-  title_template = "{title} - dbwarden Test Harness",
-  publisher_name = "Emiliano Gandini Outeda",
-  locale = "en_US",
-  auto_generate_schema = true,
-}
+[project.markdown_extensions."seoslug.contrib.zensical"]
+canonical_host = "harness.dbwarden.org"
+public_base_url = "https://harness.dbwarden.org/"
+site_name = "dbwarden Test Harness Documentation"
+title_template = "{title} - dbwarden Test Harness"
+publisher_name = "Emiliano Gandini Outeda"
+locale = "en_US"
+auto_generate_schema = true
 
 [project.markdown_extensions.tables]
 
