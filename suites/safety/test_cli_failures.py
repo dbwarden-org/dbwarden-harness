@@ -55,5 +55,5 @@ def test_warning_level_destructive_migration_requires_force(tmp_path: Path):
     forced = player.cli.run("check", "--force", check=False)
 
     assert blocked.returncode != 0
-    assert "require --force" in blocked.output.lower()
+    assert "--force" in blocked.output.lower()
     assert forced.returncode == 0

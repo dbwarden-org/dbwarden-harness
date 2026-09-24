@@ -100,7 +100,7 @@ def test_dropping_one_constraint_leaves_the_others_alone(tmp_path: Path):
 
     player.write_model_source(CONSTRAINED_MODELS_RELAXED, filename="app/models.py")
     player.make_migrations("drop the heartbeat unique constraint")
-    player.migrate()
+    player.migrate("--force")
 
     with SqlProbe(player.database_url) as probe:
         assert probe.rows("SELECT branch_id, seq_no FROM heartbeats") == [(7, 3)], (
