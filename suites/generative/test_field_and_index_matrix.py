@@ -66,7 +66,7 @@ def test_type_override_does_not_cancel_wrapper_flags(clickhouse_runner, name):
     result = clickhouse_runner.run(
         GenerationCase(f"wrapper_{name}", "clickhouse", (_field(spec).source(),), apply=False)
     )
-    emitted = re.search(r"^\s+a (.+?),?$", result.steps[0].upgrade, re.M)
+    emitted = re.search(r"^\s+a (.+?),?$", result.steps[0].upgrade, re.MULTILINE)
     assert emitted and expected in emitted.group(1), (
         f"ch.field({spec}) dropped {expected}(...) - a raw type override silently "
         f"discards the wrapper flags. Emitted: {emitted.group(1) if emitted else '(none)'}"

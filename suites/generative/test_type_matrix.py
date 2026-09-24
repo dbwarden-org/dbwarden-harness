@@ -54,7 +54,7 @@ def _case(column_type: str, preamble: str = "") -> GenerationCase:
 
 
 def _emitted_type(result) -> str:
-    match = re.search(r"^\s+c (.+?),?$", result.steps[0].upgrade, re.M)
+    match = re.search(r"^\s+c (.+?),?$", result.steps[0].upgrade, re.MULTILINE)
     return match.group(1).strip() if match else ""
 
 

@@ -70,8 +70,10 @@ MODULE_LEVEL_OBJECTS = {
         "NAMED COLLECTION",
     ),
     "data_op": (
-        'OP = data_op(name="bf", forward="INSERT INTO src (id, amt) VALUES (1, 1.0)",'
-        ' rollback="TRUNCATE TABLE src")',
+        (
+            'OP = data_op(name="bf", forward="INSERT INTO src (id, amt) VALUES (1, 1.0)",'
+            ' rollback="TRUNCATE TABLE src")'
+        ),
         "INSERT INTO src",
     ),
     "seed": ('SEED = seed_data("src", [{"id": 1, "amt": 1.0}])', "INSERT"),
