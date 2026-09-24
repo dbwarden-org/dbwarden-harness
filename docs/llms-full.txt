@@ -1,7 +1,7 @@
 # dbwarden Test Harness Documentation
 > Full documentation for black-box dbwarden release validation
 > Source: https://harness.dbwarden.org
-> Pages: 45
+> Pages: 50
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/README/
@@ -83,6 +83,44 @@ server to refuse and why; every probe rolls back, so a statement that
 unexpectedly succeeds leaves no row behind. Inspection can only report that a
 constraint exists - a probe reports whether it is enforced.
 
+## CaseRunner
+
+`tools/case_runner.py` runs `GenerationCase` objects (lists of model revisions)
+through `init → make-migrations → migrate` in parallel, one database per case.
+It records generated SQL, CLI streams, server acceptance, live schema, executed
+rollback, and both diffs. Used by the generative matrix suite to assert over
+the distribution of results rather than individual scenarios.
+
+## RoundTripDriver
+
+`tools/round_trip_driver.py` executes the full `declare → migrate →
+generate-models → adopt → diff + make-migrations` cycle. Reports convergence,
+unimportable generated modules, and bookkeeping-table leakage.
+
+## SnapshotManager
+
+`tools/snapshot_manager.py` manages versioned SQL contract baselines. Resolves
+the approved baseline for a specific dbwarden release, enabling per-version
+comparison rather than hardcoded references.
+
+## GenerationProbe
+
+`tools/generation_probe.py` re-runs a command with
+`extract_table_from_model` instrumented, recovering exceptions that
+`except Exception: return None` discards. Used only to explain a failure, never
+to make one pass.
+
+## ModelSource
+
+`tools/model_source.py` provides declarative model builders for matrix tests.
+`ClickHouseTable(...).with_(settings=...)` changes one line of the emitted
+module, so a matrix case cannot accidentally vary two things at once.
+
+## OfflineIntegrity
+
+`tools/offline_integrity.py` manages state manifest checksums for offline
+integrity verification.
+
 ## ArtifactCollector
 
 `tools/artifacts.py` writes command output, metadata, generated files, runtime
@@ -94,6 +132,119 @@ directories and provider diagnostics when a provider fixture is available.
 `tests/test_black_box_boundary.py` scans harness source for private dbwarden
 imports. `harness/provenance.py` checks that installed dbwarden is not resolved
 from the harness or product source checkout.
+
+========================================================================
+PAGE: https://harness.dbwarden.org/audit/
+========================================================================
+
+# Documentation and API audit
+
+Audit date: 2026-09-23. Local Windows checkout, using the current editable sibling dbwarden checkout. No changes were published.
+
+## Scope
+
+Reviewed repository Markdown, site navigation, configuration, CI, provider and helper APIs, nine MCP tools, reference schemas, CLI workflows and skip conditions. Added a generated [Python API inventory](reference/python-api.md) and a repeatable documentation checker. It verifies inventory drift, navigation, file links, Python snippet syntax, environment-variable coverage and MCP-tool coverage.
+
+The checker does not execute every snippet or establish live behavior for every backend. The generated API page inventories public definitions and fields, including abstract provider contracts.
+
+## Corrected behavior
+
+| Finding | Change and evidence |
+| --- | --- |
+| Convergence parser returned an empty list for missing or malformed JSON | Requests JSON explicitly and rejects invalid output. A staged rollback test had no configured models; it now declares the expected columns and index and checks real drift. |
+| Safety tests assumed destructive migration approval was unnecessary | Destructive constraint tests pass `--force` and still verify preserved data and remaining constraints. Offline error assertions match the current nonzero contract. |
+| SQL baseline omitted current safety headers | Updated the SQLite baseline and its SHA-256 manifest; table DDL is unchanged. |
+| Missing scope and merge coverage | Added real CLI projects for offline split generation, trusted plan chains, capped application, resume, malformed plans, state aliases and real Git branch collisions. |
+| MCP read/write paths escaped workspaces | Shared resolved-path validation rejects absolute paths, drive paths and escapes. Frozen workspaces reject changes. |
+| Read-only queries were not enforced and row conversion failed | Query validation plus backend read-only settings; real SQLite tests verify rejected writes, returned rows and explicit-write commits. |
+| SQLite MCP dumps required an external executable | Uses standard-library SQLite with read-only connections. Both reference modes now run in ordinary local tests. |
+| Comparator modified literals and lost table options | SQL parsing preserves literals, qualified identifiers, constraint names and options. Regression cases cover defaults, checks, engines, autoincrement and SQLite INTEGER versus INT primary keys. Unsupported syntax raises. |
+| Mutation helpers lost index columns or uniqueness | AST edits preserve requested index fields and add missing imports. Tests load resulting SQLAlchemy metadata for every mutation kind. Defaults edit client-side `default`, not `server_default`. |
+| Incremental reference used hand-written type mapping and stale bytecode | Compiles added columns from mutated metadata; loads supplied source directly. Same-size source changes have a regression test. |
+| ClickHouse HTTP provider URLs were passed to generic SQLAlchemy | Converts them to the installed dialect, preserving credentials and HTTPS settings. URL conversion has local coverage; server execution is unverified. |
+| Pool could return the wrong server version | Claims match requested versions; failed connection/reset discards the provider. |
+| Plan reader and classifier expected obsolete layouts | Reads adjacent plans and current operation/type fields; nested exotic types remain outside the standard category. |
+| Dump subprocess environment and encoded credentials were mishandled | Preserves the parent environment, decodes URL fields and passes passwords outside command arguments. Command construction is tested with mocks. |
+| JUnit wrapper totals reported zero | Aggregates contained suite totals; tests cover wrapped and bare suite reports. |
+
+## Documentation corrections
+
+Removed repeated promotional prose and corrected install instructions, SQLite coverage, slow-test selection, artifact ownership, plugin loading, provider status and private-import checks. MCP documentation now covers all tools, mutations, reference-mode fallback, classification labels and trust boundaries. Exported state JSON has no embedded integrity checksum; the harness's file manifest is a separate check.
+
+## Validation
+
+Run evidence is retained in local `.audit-*.log` files, excluded from Git.
+
+| Check | Result |
+| --- | --- |
+| Full suite, two workers with benchmark timing disabled | 151 passed, 289 skipped in 139.04 seconds; `.data-harness-final-tests.log` |
+| Parallel offline/scope/Git-merge cases | 3 passed; `.audit-merge-parallel.log` |
+| API boundary and semantic regressions | 40 passed; `.audit-edge-final.log` |
+| Serial snapshot benchmark test | 1 passed; `.audit-benchmark-final.log` |
+| Runtime MCP registration | All nine tools exposed; queries default to read-only |
+| Documentation audit | 69 Markdown documents, 112 Python snippets, 53 source modules, nine MCP tools, 22 environment variables; no issues |
+| Ruff, strict Zensical build, diff whitespace | Passed |
+
+An initial parallel run passed 141 cases and failed once while importing Python's `_overlapped` module, before merge code loaded: Windows error 10106, service provider initialization failure. The child environment retained `SYSTEMROOT`, `WINDIR` and `PATH`; the host had ample free memory. Forty parallel Python/dbwarden startup checks, the parallel merge/scope tests and the final full parallel suite passed afterward. No retry, skip or serialization workaround was added. These checks did not establish the operating-system failure's cause.
+
+The harness's Docker-gated PostgreSQL, MySQL, MariaDB and ClickHouse suites were skipped because the Docker engine pipe was unavailable. WSL2 also could not start because host virtualization was disabled, so ClickHouse could not be qualified locally. Separate core evidence exercised native PostgreSQL, MariaDB and MySQL data paths; it does not make the skipped harness Docker suites pass. SQLite and mocked boundary tests do not establish server correctness. Model source executes as trusted Python; the MCP server does not sandbox it. Read-only bundle files are not immutable storage. Process-crash, power-loss and arbitrary external plugin behavior are outside this run's evidence.
+
+## Reproduce
+
+```bash
+uv sync --group dev --reinstall-package dbwarden
+uv run pytest -q
+uv run ruff check .
+uv run python -m tools.check_docs
+uv run zensical build --strict
+```
+
+Parallel correctness runs can use `uv run pytest -n 2 --benchmark-disable -q`. This executes benchmark fixtures once without timing them; run benchmark measurements separately without workers.
+
+========================================================================
+PAGE: https://harness.dbwarden.org/changelog/
+========================================================================
+
+# Changelog
+
+All notable changes to the dbwarden Test Harness, newest first. The harness has
+no tagged releases yet, so changes are grouped by the date they landed on
+`main`.
+
+## 2026-09-19
+
+### Changed
+
+- **dbwarden is resolved from the sibling `../dbwarden` checkout.** The
+  lockfile points at the source through `[tool.uv.sources]` and the dependency
+  floor is raised to `0.19.0`, so the harness exercises the latest source
+  instead of the published wheel. `uv sync --no-sources` still resolves PyPI
+  for the distribution certification workflow.
+- **The compatibility findings are closed.** Every finding recorded against the
+  published `0.17.1` wheel is fixed, along with the PostgreSQL identity, index
+  sorting, `NULLS NOT DISTINCT`, and storage-parameter findings. See
+  [Known Findings by Release](known-compatibility.md).
+
+### Added
+
+- **A `v0.19.0` SQLite SQL contract baseline.** `0.19.0` emits `AUTOINCREMENT`
+  for a SQLite integer primary key, so the byte-level contract is approved per
+  release. See [SQL Contract Tests](suites/sql-contracts.md).
+- **`dbwarden-redis` in the required plugin matrix.**
+
+### Removed
+
+- **A stale strict `xfail` on MariaDB foreign-key ordering.** The `0.16.5` fix
+  is in, so the cell now passes.
+
+### Fixed
+
+- **CI checks out `dbwarden-org/dbwarden` alongside the harness.** Every job
+  except distribution needs the sibling checkout for the path source;
+  distribution certifies the published wheel with `uv sync --locked
+  --no-sources`.
+- **Ruff findings in the generative suites and tools** are cleared under the
+  current ruff version.
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/correctness/convergence/
@@ -848,7 +999,11 @@ The source repository is available at
 The product being tested is documented at
 [dbwarden-org/dbwarden](https://github.com/dbwarden-org/dbwarden).
 
-For machine-readable documentation, use
+For machine-readable documentation, use the [Environment Variables](reference/environment.md) reference and the [Repository Layout](reference/layout.md).
+
+The product being tested is
+[dbwarden](https://github.com/dbwarden-org/dbwarden), a declarative schema
+compiler for SQLAlchemy.
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/known-compatibility/
@@ -930,6 +1085,64 @@ The last command needs no Docker and reproduces both SQLite findings.
 
 The provider lifecycle matrix is independent of these dbwarden release findings
 and passes all declared backend/version cases.
+
+========================================================================
+PAGE: https://harness.dbwarden.org/mcp-server/
+========================================================================
+
+# MCP Server
+
+The `mcp_server/` package provides an interactive testing server for consumer workflows. It manages workspaces, warm connection pools, and bug report collection.
+
+## Configuration
+
+The MCP server is configured through environment variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `DBWARDEN_HARNESS_ROOT` | `/tmp/dbwarden-mcp-workspaces` | Workspace root directory |
+| `DBWARDEN_HARNESS_BUG_REPORTS_DIR` | `bug-reports` | Directory for bug report artifacts |
+| `MCP_MAX_WORKSPACES` | `20` | Maximum concurrent workspaces |
+| `MCP_WARM_POOL_ENABLED` | `1` | Enable warm connection pool |
+| `MCP_WARM_POOL_POSTGRES` | `5` | Warm PostgreSQL connections |
+| `MCP_WARM_POOL_MYSQL` | `3` | Warm MySQL connections |
+| `MCP_WARM_POOL_MARIADB` | `3` | Warm MariaDB connections |
+| `MCP_WARM_POOL_CLICKHOUSE` | `3` | Warm ClickHouse connections |
+| `MCP_POSTGRES_VERSION` | `16` | PostgreSQL version |
+| `MCP_MYSQL_VERSION` | `8.0` | MySQL version |
+| `MCP_MARIADB_VERSION` | `11.4` | MariaDB version |
+| `MCP_CLICKHOUSE_VERSION` | `24.3` | ClickHouse version |
+
+## Running
+
+```bash
+python -m mcp_server
+```
+
+The server starts and listens for workspace requests. Each workspace gets its own database and configuration.
+
+## Architecture
+
+| Module | Role |
+|---|---|
+| `server.py` | Main server entry point |
+| `config.py` | Environment-based configuration |
+| `workspace.py` | Workspace lifecycle management |
+| `pool.py` | Warm connection pool for fast startup |
+| `bundle.py` | Workspace packaging and export |
+| `classifier.py` | Request classification |
+| `comparator.py` | Schema comparison |
+| `dumper.py` | Database state dumping |
+| `inspector.py` | Schema inspection |
+| `mutations.py` | Schema mutation operations |
+| `network.py` | Network utilities |
+| `track_a.py` / `track_b.py` | Test track definitions |
+| `models.py` | Data models |
+
+## See also
+
+- [Environment Variables](reference/environment.md)
+- [Repository Layout](reference/layout.md)
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/operations/artifacts/
@@ -1359,7 +1572,7 @@ uv run pytest -m integration suites/round_trip/test_providers.py
 
 The scheduled matrix workflow runs backend-specific jobs. PostgreSQL and
 ClickHouse are currently strict. MySQL and MariaDB have experimental cells for
-known PyPI 0.16.5 compatibility findings. Their tests run and upload artifacts;
+known PyPI 0.17.1 compatibility findings. Their tests run and upload artifacts;
 they are not silently omitted.
 
 ========================================================================
@@ -1378,6 +1591,21 @@ PAGE: https://harness.dbwarden.org/reference/environment/
 | `DBWARDEN_HARNESS_BACKEND` | Limits provider matrix lifecycle cases to one backend. |
 | `DBWARDEN_HARNESS_VERSIONS` | Limits provider matrix lifecycle cases to listed versions. |
 | `DBWARDEN_HARNESS_ARTIFACT_DIR` | Writes failed test artifacts to the selected directory. |
+| `DBWARDEN_HARNESS_CLICKHOUSE_URL` | ClickHouse connection URL for generative suite. |
+| `DBWARDEN_HARNESS_CLICKHOUSE_VERSION` | ClickHouse image version for generative suite (default `26.6`). |
+| `DBWARDEN_HARNESS_ENFORCE_PERFORMANCE` | When set to `1`, the 500-migration benchmark asserts against a performance baseline instead of measuring only. |
+| `DBWARDEN_HARNESS_ROOT` | Workspace root directory for the MCP server (default `/tmp/dbwarden-mcp-workspaces`). |
+| `DBWARDEN_HARNESS_BUG_REPORTS_DIR` | Directory for MCP server bug report artifacts (default `bug-reports`). |
+| `MCP_MAX_WORKSPACES` | Maximum concurrent MCP workspaces (default `20`). |
+| `MCP_WARM_POOL_ENABLED` | Enable MCP warm connection pool (default `1`). |
+| `MCP_WARM_POOL_POSTGRES` | Number of warm PostgreSQL connections in MCP pool (default `5`). |
+| `MCP_WARM_POOL_MYSQL` | Number of warm MySQL connections in MCP pool (default `3`). |
+| `MCP_WARM_POOL_MARIADB` | Number of warm MariaDB connections in MCP pool (default `3`). |
+| `MCP_WARM_POOL_CLICKHOUSE` | Number of warm ClickHouse connections in MCP pool (default `3`). |
+| `MCP_POSTGRES_VERSION` | PostgreSQL version for MCP server (default `16`). |
+| `MCP_MYSQL_VERSION` | MySQL version for MCP server (default `8.0`). |
+| `MCP_MARIADB_VERSION` | MariaDB version for MCP server (default `11.4`). |
+| `MCP_CLICKHOUSE_VERSION` | ClickHouse version for MCP server (default `24.3`). |
 
 Variables beginning with `DBWARDEN_HARNESS_` are included in command artifact
 metadata so a run can be reproduced.
@@ -1457,6 +1685,22 @@ PAGE: https://harness.dbwarden.org/reference/glossary/
 : A matrix test that runs and retains evidence but is allowed to fail because a
   known package compatibility issue exists.
 
+**Fast tier**
+: Tests that run without Docker, using SQLite or generated artifacts only.
+  Selected by `pytest -m "not integration and not slow"`.
+
+**Integration tier**
+: Tests that require a container from `infrastructure/providers`. Selected by
+  `DBWARDEN_HARNESS_RUN_INTEGRATION=1 pytest -m integration`.
+
+**Slow tier**
+: Tests that require a container and significant time. Selected by adding
+  `-m slow` explicitly.
+
+**MCP server**
+: An interactive testing server that provides workspace management, warm
+  connection pools, and bug report collection for consumer workflows.
+
 ========================================================================
 PAGE: https://harness.dbwarden.org/reference/layout/
 ========================================================================
@@ -1467,6 +1711,7 @@ PAGE: https://harness.dbwarden.org/reference/layout/
 .github/workflows/       Pull request, matrix, plugin, distribution, performance CI
 harness/                 CLI, distribution, plugin, matrix, provenance helpers
 infrastructure/          Provider abstractions and Docker compose files
+mcp_server/              MCP server for interactive testing workspaces
 schemas/                 Reference model fixtures and registry
 suites/                  Black-box test categories
 tests/                   Harness unit and contract tests
@@ -1480,6 +1725,1155 @@ zensical.toml            Documentation configuration and navigation
 The harness repository is independent of the dbwarden source repository. A
 clean harness install resolves dbwarden from the configured distribution
 environment.
+
+========================================================================
+PAGE: https://harness.dbwarden.org/reference/python-api/
+========================================================================
+
+# Python API Reference
+
+Generated from source with `uv run python -m tools.check_docs --api-reference`.
+Lists public definitions, constructors, methods, and dataclass fields. These are harness APIs; dbwarden is invoked through its installed CLI.
+Abstract provider methods define the contract implemented by concrete providers. See [MCP Server](../mcp-server.md) for remote tools and limits.
+
+## `harness/cli.py`
+
+### `CommandResult`
+
+```python
+args: tuple[str, ...]
+returncode: int
+stdout: str
+stderr: str
+def require_success(self) -> CommandResult: ...
+def require_clean(self) -> CommandResult: ...
+def require_failure(self, *fragments: str) -> CommandResult: ...
+def output(self) -> str: ...
+def plain_output(self) -> str: ...
+```
+
+### `DbwardenCli`
+
+Invoke the installed dbwarden CLI without importing implementation modules.
+
+```python
+def __init__(self, work_dir: Path, *, executable: str | None=None, env: dict[str, str] | None=None) -> None: ...
+def run(self, *args: str, check: bool=True, timeout: float=120.0, clean: bool=False) -> CommandResult: ...
+def run_raw(self, command: Sequence[str], *, check: bool=True, timeout: float=120.0) -> CommandResult: ...
+```
+
+## `harness/distribution.py`
+
+### `DistributionReport`
+
+```python
+name: str
+version: str
+files: tuple[str, ...]
+entry_points: tuple[tuple[str, str, str], ...] = ()
+location: str = ''
+```
+
+### `inspect_distribution`
+
+```python
+def inspect_distribution(name: str='dbwarden') -> DistributionReport: ...
+```
+
+### `inspect_distributions`
+
+```python
+def inspect_distributions(names: tuple[str, ...]) -> tuple[DistributionReport, ...]: ...
+```
+
+### `assert_wheel_is_clean`
+
+```python
+def assert_wheel_is_clean(report: DistributionReport) -> None: ...
+```
+
+### `assert_console_entry_point`
+
+```python
+def assert_console_entry_point(report: DistributionReport) -> None: ...
+```
+
+## `harness/matrix.py`
+
+### `VersionMatrix`
+
+```python
+python: tuple[str, ...] = ('3.12', '3.13')
+postgres: tuple[str, ...] = ('14', '15', '16', '17')
+clickhouse: tuple[str, ...] = ('24.3', '26.6')
+mysql: tuple[str, ...] = ('8.0', '8.4')
+mariadb: tuple[str, ...] = ('10.11', '11.4')
+```
+
+### `provider_versions`
+
+```python
+def provider_versions(matrix: VersionMatrix=DEFAULT_MATRIX) -> Iterator[tuple[str, str]]: ...
+```
+
+## `harness/plugins.py`
+
+### `PluginInstaller`
+
+Install plugins through dbwarden's public plugin CLI.
+
+```python
+def __init__(self, work_dir: Path) -> None: ...
+def add(self, distribution: str, *, version: str | None=None) -> CommandResult: ...
+def build_add_command(self, distribution: str, *, version: str | None=None) -> tuple[str, ...]: ...
+def add_many(self, distributions: list[str] | tuple[str, ...]) -> list[CommandResult]: ...
+def add_required(self) -> list[CommandResult]: ...
+def list(self) -> CommandResult: ...
+def info(self, distribution: str) -> CommandResult: ...
+def remove(self, distribution: str) -> CommandResult: ...
+def assert_discovered(result: CommandResult, distributions: tuple[str, ...]=REQUIRED_PLUGINS) -> None: ...
+```
+
+## `harness/provenance.py`
+
+### `file_sha256`
+
+```python
+def file_sha256(path: Path) -> str | None: ...
+```
+
+### `collect_provenance`
+
+```python
+def collect_provenance(*, lockfile: Path | None=None, distributions: tuple[str, ...]=('dbwarden',)) -> dict[str, Any]: ...
+```
+
+### `assert_installed_distribution`
+
+```python
+def assert_installed_distribution(report: dict[str, Any], *, checkout: Path | str | None=None) -> None: ...
+```
+
+## `infrastructure/providers/base.py`
+
+### `DatabaseProvider`
+
+Lifecycle contract for a real database used by integration tests.
+
+```python
+def start(self) -> str: ...
+def stop(self) -> None: ...
+def reset(self) -> None: ...
+def version(self) -> str: ...
+def diagnostics(self) -> dict[str, Any]: ...
+def logs(self) -> str: ...
+```
+
+## `infrastructure/providers/clickhouse.py`
+
+### `ClickHouseProvider`
+
+```python
+def __init__(self, image: str='clickhouse/clickhouse-server:24.3', *, database: str='harness', network: Network | None=None) -> None: ...
+def url(self) -> str: ...
+def reset(self) -> None: ...
+def wait_for_connection(self, timeout: float=60.0) -> None: ...
+```
+
+## `infrastructure/providers/clickhouse_cluster.py`
+
+### `ClickHouseClusterProvider`
+
+A two-node ClickHouse cluster with a shared ClickHouse Keeper.
+
+```python
+def __init__(self, image: str='clickhouse/clickhouse-server:24.3', keeper_image: str='clickhouse/clickhouse-keeper:24.3', *, database: str='harness') -> None: ...
+def start(self) -> str: ...
+def stop(self) -> None: ...
+def reset(self) -> None: ...
+def url(self, node: int=0) -> str: ...
+def version(self) -> str: ...
+def diagnostics(self) -> dict[str, Any]: ...
+def host_port(self, node: int=0) -> tuple[str, int]: ...
+```
+
+## `infrastructure/providers/docker.py`
+
+### `DockerDatabaseProvider`
+
+```python
+image: str
+container_port: int
+environment: dict[str, str] = field(default_factory=dict)
+network: Network | None = field(default=None, repr=False)
+def start(self) -> str: ...
+def stop(self) -> None: ...
+def reset(self) -> None: ...
+def version(self) -> str: ...
+def diagnostics(self) -> dict[str, Any]: ...
+def logs(self) -> str: ...
+def host_port(self) -> tuple[str, int]: ...
+def url(self) -> str: ...
+def wait_for_connection(self, timeout: float=60.0) -> None: ...
+```
+
+## `infrastructure/providers/factory.py`
+
+### `provider_for`
+
+Build a matrix provider without starting a container.
+
+```python
+def provider_for(backend: str, version: str, *, network: Network | None=None) -> DatabaseProvider: ...
+```
+
+## `infrastructure/providers/mariadb.py`
+
+### `MariaDBProvider`
+
+```python
+def __init__(self, image: str='mariadb:11.4', *, database: str='harness', network: Network | None=None) -> None: ...
+```
+
+## `infrastructure/providers/mysql.py`
+
+### `MySQLProvider`
+
+```python
+def __init__(self, image: str='mysql:8.4', *, database: str='harness', network: Network | None=None) -> None: ...
+def url(self) -> str: ...
+def reset(self) -> None: ...
+```
+
+## `infrastructure/providers/postgres.py`
+
+### `PostgresProvider`
+
+```python
+def __init__(self, image: str='postgres:17', *, database: str='harness', network: Network | None=None) -> None: ...
+def url(self) -> str: ...
+def reset(self) -> None: ...
+```
+
+## `infrastructure/providers/sqlite.py`
+
+### `SQLiteProvider`
+
+File-backed provider for the SQLite backend.
+
+```python
+def __init__(self, path: Path | None=None) -> None: ...
+def start(self) -> str: ...
+def url(self) -> str: ...
+def stop(self) -> None: ...
+def reset(self) -> None: ...
+def version(self) -> str: ...
+def diagnostics(self) -> dict[str, Any]: ...
+```
+
+## `mcp_server/bundle.py`
+
+### `assemble_proof_bundle`
+
+Freeze workspace APIs and write a read-only evidence bundle.
+
+```python
+def assemble_proof_bundle(workspace: Workspace, base_models_source: str, mutated_models_source: str, track_a_result: TrackResult, track_b_result: TrackResult, comparison: ComparisonResult, reference_mode: str) -> TwoTrackResult: ...
+```
+
+## `mcp_server/classifier.py`
+
+### `classify_divergence`
+
+Deterministic 95/5 classification based on dbwarden's emitted plan.
+
+```python
+def classify_divergence(plan: dict[str, Any] | None, diff_summary: dict[str, Any]) -> str: ...
+```
+
+## `mcp_server/comparator.py`
+
+### `compare_schemas`
+
+```python
+def compare_schemas(dump_a: str, dump_b: str, backend: str='') -> ComparisonResult: ...
+```
+
+### `normalize_schema_dump`
+
+Canonicalize parsed DDL while preserving literals, identifiers and table options.
+
+```python
+def normalize_schema_dump(dump: str, backend: str='') -> str: ...
+```
+
+## `mcp_server/config.py`
+
+### `HarnessMcpConfig`
+
+Runtime configuration for the MCP server.
+
+```python
+max_workspaces: int
+bug_reports_dir: Path
+workspace_root: Path
+warm_pool_enabled: bool
+warm_pool_count: dict[str, int]
+db_versions: dict[str, str]
+def from_env(cls) -> HarnessMcpConfig: ...
+```
+
+## `mcp_server/dumper.py`
+
+### `SchemaDumpError`
+
+Raised when a native schema dump fails.
+
+```python
+```
+
+### `dump_database_schema`
+
+Dump the schema of a live database using backend-native tooling.
+
+```python
+def dump_database_schema(database_url: str, backend: str) -> str: ...
+```
+
+## `mcp_server/inspector.py`
+
+### `read_workspace_file`
+
+```python
+def read_workspace_file(workspace: Workspace, relative_path: str) -> str: ...
+```
+
+### `inspect_both_schemas`
+
+```python
+def inspect_both_schemas(workspace: Workspace) -> tuple[str, str]: ...
+```
+
+### `sqlalchemy_url`
+
+Translate ClickHouse HTTP provider URLs to the installed SQLAlchemy driver.
+
+```python
+def sqlalchemy_url(database_url: str) -> URL: ...
+```
+
+### `query_track_a`
+
+Query Track A, guarding reads and committing explicitly enabled writes.
+
+```python
+def query_track_a(workspace: Workspace, sql: str, read_only: bool=True) -> list[dict[str, object]]: ...
+```
+
+## `mcp_server/models.py`
+
+### `InitializeResult`
+
+```python
+workspace_id: str
+backend: str
+db_version: str | None
+work_dir: Path
+track_a_url: str
+track_b_url: str
+```
+
+### `DestroyResult`
+
+```python
+workspace_id: str
+removed: bool
+```
+
+### `WorkspaceInfo`
+
+```python
+workspace_id: str
+backend: str
+db_version: str | None
+work_dir: Path
+created_at: float
+frozen: bool
+```
+
+### `ListWorkspacesResult`
+
+```python
+workspaces: list[WorkspaceInfo]
+```
+
+### `WriteResult`
+
+```python
+workspace_id: str
+relative_path: str
+bytes_written: int
+```
+
+### `MutationResult`
+
+```python
+workspace_id: str
+relative_path: str
+new_source: str
+applied: list[dict[str, Any]]
+```
+
+### `TrackResult`
+
+```python
+success: bool
+stage: str
+error: str = ''
+schema_dump: str = ''
+schema_dump_path: Path | None = None
+plan: dict[str, Any] | None = None
+```
+
+### `ComparisonSummary`
+
+```python
+missing_columns: list[dict[str, str]] = field(default_factory=list)
+type_mismatches: list[dict[str, str]] = field(default_factory=list)
+missing_tables: list[str] = field(default_factory=list)
+extra_tables: list[str] = field(default_factory=list)
+```
+
+### `ComparisonResult`
+
+```python
+identical: bool
+diff: str = ''
+summary: ComparisonSummary = field(default_factory=ComparisonSummary)
+```
+
+### `TwoTrackResult`
+
+```python
+passed: bool
+track_a: TrackResult
+track_b: TrackResult
+comparator: ComparisonResult
+classification: str
+proof_bundle_path: Path | None = None
+ai_may_inspect: bool = True
+```
+
+## `mcp_server/mutations.py`
+
+### `MutationError`
+
+Raised when a mutation cannot be applied to the model source.
+
+```python
+```
+
+### `apply_mutation`
+
+Edit a declared model column or index; reject unsupported source shapes.
+
+```python
+def apply_mutation(source: str, mutation: dict[str, Any]) -> str: ...
+```
+
+## `mcp_server/network.py`
+
+### `WorkspaceNetwork`
+
+A Docker bridge network scoped to one workspace.
+
+```python
+network: Network
+network_id: str
+name: str
+def create(cls) -> WorkspaceNetwork: ...
+def connect(self, container_id: str) -> None: ...
+def disconnect(self, container_id: str) -> None: ...
+def remove(self) -> None: ...
+```
+
+## `mcp_server/pool.py`
+
+### `ContainerPool`
+
+Warm pool of pre-started database containers keyed by backend.
+
+```python
+def __init__(self) -> None: ...
+def start(self) -> None: ...
+def stop(self) -> None: ...
+def claim(self, backend: str, version: str, workspace_network: WorkspaceNetwork) -> DatabaseProvider: ...
+def release(self, backend: str, provider: DatabaseProvider, workspace_network: WorkspaceNetwork | None) -> None: ...
+```
+
+## `mcp_server/server.py`
+
+### `initialize_workspace`
+
+Create a new isolated workspace with a database pair for two-track testing.
+
+```python
+def initialize_workspace(backend: str, db_version: str | None=None, name_prefix: str | None=None) -> str: ...
+```
+
+### `destroy_workspace`
+
+Destroy a workspace and release its resources.
+
+```python
+def destroy_workspace(workspace_id: str) -> str: ...
+```
+
+### `list_workspaces`
+
+List all active workspaces.
+
+```python
+def list_workspaces() -> str: ...
+```
+
+### `write_model_file`
+
+Write a file inside a workspace; app/models.py also updates the test model state.
+
+```python
+def write_model_file(workspace_id: str, relative_path: str, content: str) -> str: ...
+```
+
+### `apply_mutation`
+
+Apply a structured mutation to the current app/models.py.
+
+```python
+def apply_mutation(workspace_id: str, mutation: dict[str, Any]) -> str: ...
+```
+
+### `run_two_track_test`
+
+Run dbwarden (Track A) and a SQLAlchemy Core DDL reference (Track B), then compare schemas.
+
+```python
+def run_two_track_test(workspace_id: str, reference_mode: str='nuclear') -> str: ...
+```
+
+### `read_file`
+
+Read a file from a workspace (read-only; works on frozen workspaces).
+
+```python
+def read_file(workspace_id: str, relative_path: str) -> str: ...
+```
+
+### `inspect_schema`
+
+Return native schema dumps for both tracks (read-only).
+
+```python
+def inspect_schema(workspace_id: str) -> str: ...
+```
+
+### `query_database`
+
+Run a SQL query against Track A's database. Defaults to read-only.
+
+```python
+def query_database(workspace_id: str, sql: str, read_only: bool=True) -> str: ...
+```
+
+### `run_server`
+
+```python
+def run_server() -> None: ...
+```
+
+## `mcp_server/track_a.py`
+
+### `run_track_a`
+
+```python
+def run_track_a(workspace: Workspace, base_models_source: str, mutated_models_source: str) -> TrackResult: ...
+```
+
+## `mcp_server/track_b.py`
+
+### `run_track_b_nuclear`
+
+Drop and recreate the schema from the mutated model module.
+
+```python
+def run_track_b_nuclear(workspace: Workspace, mutated_models_source: str) -> TrackResult: ...
+```
+
+### `run_track_b_incremental`
+
+Best-effort incremental reference path.
+
+```python
+def run_track_b_incremental(workspace: Workspace, base_models_source: str, mutated_models_source: str) -> TrackResult: ...
+```
+
+## `mcp_server/workspace.py`
+
+### `Workspace`
+
+```python
+workspace_id: str
+backend: str
+db_version: str | None
+work_dir: Path
+network: WorkspaceNetwork | None
+track_a_provider: DatabaseProvider
+track_b_provider: DatabaseProvider
+track_a_url: str
+track_b_url: str
+created_at: float = field(default_factory=time.time)
+frozen: bool = False
+mutations: list[dict[str, Any]] = field(default_factory=list)
+base_models_source: str | None = None
+current_models_source: str | None = None
+def freeze(self) -> None: ...
+def resolve_path(self, relative_path: str) -> Path: ...
+```
+
+### `WorkspaceManager`
+
+Create, track, and destroy isolated per-test workspaces.
+
+```python
+def __init__(self) -> None: ...
+def initialize(self, backend: str, db_version: str | None=None, name_prefix: str | None=None) -> InitializeResult: ...
+def destroy(self, workspace_id: str) -> DestroyResult: ...
+def list_workspaces(self) -> ListWorkspacesResult: ...
+def get(self, workspace_id: str) -> Workspace: ...
+```
+
+## `schemas/base.py`
+
+### `ReferenceSchema`
+
+```python
+name: str
+models_py: Path
+expected_tables: tuple[str, ...]
+expected_indexes: tuple[str, ...]
+backend: str
+def source(self) -> str: ...
+```
+
+## `schemas/registry.py`
+
+### `discover_schemas`
+
+```python
+def discover_schemas(root: Path | None=None) -> tuple[ReferenceSchema, ...]: ...
+```
+
+## `tools/artifacts.py`
+
+### `ArtifactBundle`
+
+```python
+directory: Path
+stdout: Path
+stderr: Path
+metadata: Path
+copied_paths: tuple[Path, ...] = ()
+```
+
+### `ArtifactCollector`
+
+Persist enough CLI context to diagnose a failed black-box test.
+
+```python
+def capture(self, result: CommandResult, *, work_dir: Path, destination: Path, extra_paths: tuple[Path, ...]=(), extra_metadata: dict[str, object] | None=None) -> ArtifactBundle: ...
+def capture_provider(self, provider: object, destination: Path) -> tuple[Path, Path]: ...
+```
+
+## `tools/case_runner.py`
+
+### `strip_ansi`
+
+```python
+def strip_ansi(text: str) -> str: ...
+```
+
+### `StepResult`
+
+One ``make-migrations`` (+ optional ``migrate``) revision.
+
+```python
+index: int
+returncode: int
+stdout: str
+stderr: str
+new_files: tuple[str, ...] = ()
+sql: str = ''
+migrate_returncode: int | None = None
+migrate_output: str = ''
+def upgrade(self) -> str: ...
+def rollback(self) -> str: ...
+def generated(self) -> bool: ...
+def silently_skipped(self) -> bool: ...
+def reported_no_changes(self) -> bool: ...
+def reported_no_tables(self) -> bool: ...
+def server_error(self) -> str: ...
+def verdict(self) -> str: ...
+```
+
+### `CaseResult`
+
+```python
+case_id: str
+backend: str
+work_dir: Path
+database: str | None = None
+steps: list[StepResult] = field(default_factory=list)
+harness_error: str | None = None
+live_schema: str = ''
+schema_after_rollback: str = ''
+rollback_returncode: int | None = None
+rollback_output: str = ''
+diff_online: str = ''
+diff_offline: str = ''
+def last(self) -> StepResult: ...
+def verdict(self) -> str: ...
+def diff_operations(self, *, offline: bool=False) -> list[dict[str, Any]]: ...
+def summary(self) -> str: ...
+```
+
+### `GenerationCase`
+
+One project taken through ``revisions`` successive model revisions.
+
+```python
+case_id: str
+backend: str
+revisions: Sequence[str]
+flags: Sequence[Sequence[str]] | None = None
+apply: bool = True
+rollback: int = 0
+capture_schema: bool = False
+capture_diff: bool = False
+config_extra: str = ''
+model_paths: tuple[str, ...] = ('app',)
+def flags_for(self, index: int) -> tuple[str, ...]: ...
+```
+
+### `CaseRunner`
+
+Materialize and drive :class:`GenerationCase` projects.
+
+```python
+def __init__(self, root: Path, *, url_for: Any, clickhouse_http: str | None=None, env: dict[str, str] | None=None) -> None: ...
+def clickhouse_query(self, sql: str, database: str | None=None) -> tuple[int, str]: ...
+def clickhouse_schema(self, database: str) -> str: ...
+def run(self, case: GenerationCase) -> CaseResult: ...
+def run_all(self, cases: Iterable[GenerationCase], *, workers: int=8) -> list[CaseResult]: ...
+```
+
+### `sqlite_urls`
+
+```python
+def sqlite_urls(case_id: str, work_dir: Path) -> tuple[str, None]: ...
+```
+
+### `clickhouse_urls`
+
+Build a ``url_for`` that gives every case its own ClickHouse database.
+
+```python
+def clickhouse_urls(base_url: str): ...
+```
+
+### `report`
+
+One line per case — the format the generative suites put in failure text.
+
+```python
+def report(results: Sequence[CaseResult]) -> str: ...
+```
+
+### `verdict_counts`
+
+```python
+def verdict_counts(results: Sequence[CaseResult]) -> dict[str, int]: ...
+```
+
+## `tools/convergence_benchmark.py`
+
+### `ConvergenceBenchmarkResult`
+
+```python
+migration_count: int
+prepare_seconds: float
+migrate_seconds: float
+diff_seconds: float
+total_seconds: float
+def to_json(self) -> str: ...
+```
+
+### `model_source`
+
+```python
+def model_source(migration_count: int) -> str: ...
+```
+
+### `create_history`
+
+```python
+def create_history(work_dir: Path, migration_count: int) -> None: ...
+```
+
+### `run_convergence_benchmark`
+
+```python
+def run_convergence_benchmark(work_dir: Path, *, migration_count: int=500, executable: str='dbwarden') -> ConvergenceBenchmarkResult: ...
+```
+
+## `tools/drift_checker.py`
+
+### `SchemaSnapshot`
+
+```python
+tables: tuple[str, ...]
+columns: dict[str, tuple[str, ...]]
+indexes: dict[str, tuple[str, ...]]
+column_details: dict[str, tuple[tuple[str, str, bool, str | None], ...]] = field(default_factory=dict)
+primary_keys: dict[str, tuple[str, ...]] = field(default_factory=dict)
+foreign_keys: dict[str, tuple[tuple[str, str, str], ...]] = field(default_factory=dict)
+unique_constraints: dict[str, tuple[str, ...]] = field(default_factory=dict)
+views: tuple[str, ...] = ()
+table_options: dict[str, tuple[tuple[str, str], ...]] = field(default_factory=dict)
+```
+
+### `DriftItem`
+
+```python
+kind: str
+object_name: str
+expected: Any
+actual: Any
+```
+
+### `DriftChecker`
+
+Capture portable structural state through SQLAlchemy inspection.
+
+```python
+def capture(self, database_url: str) -> SchemaSnapshot: ...
+def diff(self, expected: SchemaSnapshot, actual: SchemaSnapshot) -> list[DriftItem]: ...
+def assert_equal(self, expected: SchemaSnapshot, actual: SchemaSnapshot) -> None: ...
+```
+
+## `tools/generation_probe.py`
+
+### `SwallowedError`
+
+```python
+location: str
+exception: str
+traceback: str
+```
+
+### `GenerationProbe`
+
+Run a dbwarden command with model-discovery error swallowing disabled.
+
+```python
+def __init__(self, work_dir: Path, *, env: dict[str, str] | None=None) -> None: ...
+def run(self, *args: str, timeout: float=180.0) -> tuple[int, str, str]: ...
+def swallowed_errors(self, *args: str) -> tuple[SwallowedError, ...]: ...
+```
+
+### `parse_swallowed`
+
+```python
+def parse_swallowed(stderr: str) -> tuple[SwallowedError, ...]: ...
+```
+
+## `tools/migration_player.py`
+
+### `MigrationPlayer`
+
+Drive a disposable dbwarden project through its public CLI.
+
+```python
+def __init__(self, database_url: str, work_dir: Path) -> None: ...
+def init(self) -> CommandResult: ...
+def configure(self, *, database_name: str='primary', database_type: str | None=None, model_paths: tuple[str, ...]=(), dev_database_type: str | None=None, dev_database_url: str | None=None, **extra: Any) -> Path: ...
+def init_and_configure(self, **kwargs: object) -> Path: ...
+def write_model_source(self, source: str, *, filename: str='models.py') -> Path: ...
+def make_migrations(self, message: str, *flags: str) -> CommandResult: ...
+def migrate(self, *flags: str) -> CommandResult: ...
+def rollback(self, count: int=1, *flags: str) -> CommandResult: ...
+def status(self, *flags: str) -> CommandResult: ...
+def diff(self, *flags: str) -> CommandResult: ...
+def diff_operations(self) -> list[dict[str, Any]]: ...
+def generate_models(self, *flags: str) -> CommandResult: ...
+def export_models(self, *flags: str) -> CommandResult: ...
+def check_impact(self, *flags: str) -> CommandResult: ...
+def assert_converged(self, *flags: str) -> None: ...
+def assert_history_integrity(self) -> None: ...
+```
+
+### `parse_diff_output`
+
+Extract dbwarden's JSON diff payload from log-prefixed CLI output.
+
+```python
+def parse_diff_output(output: str) -> list[dict[str, Any]]: ...
+```
+
+## `tools/model_source.py`
+
+### `module`
+
+Assemble a model module for ``backend`` from class-definition bodies.
+
+```python
+def module(backend: str, *bodies: str, preamble: str='') -> str: ...
+```
+
+### `Column_`
+
+One column in a generated model.
+
+```python
+name: str
+type: str = 'Integer'
+primary_key: bool = False
+args: str = ''
+def render(self) -> str: ...
+```
+
+### `ClickHouseTable`
+
+A ClickHouse model whose Meta is assembled from named properties.
+
+```python
+name: str = 't'
+class_name: str = 'T'
+columns: tuple[Column_, ...] = (Column_('id', primary_key=True), Column_('a'))
+engine: str = 'merge_tree()'
+order_by: str | None = '["id"]'
+primary_key: str | None = None
+partition_by: str | None = None
+sample_by: str | None = None
+ttl: str | None = None
+settings: str | None = None
+indexes: str | None = None
+projections: str | None = None
+zookeeper_path: str | None = None
+replica_name: str | None = None
+comment: str | None = None
+column_meta: dict[str, str] = field(default_factory=dict)
+column_comments: dict[str, str] = field(default_factory=dict)
+base: str = 'Base'
+meta_base: str = 'CHTableMeta'
+raw_meta: str | None = None
+def render(self) -> str: ...
+def with_(self, **changes: Any) -> ClickHouseTable: ...
+def source(self) -> str: ...
+```
+
+### `ClickHouseView`
+
+A ClickHouse materialized/aggregating view model.
+
+```python
+name: str = 'v'
+class_name: str = 'V'
+columns: tuple[Column_, ...] = (Column_('id', primary_key=True),)
+spec: str = 'materialized_view(select="SELECT id FROM src", engine=merge_tree(), order_by=["id"])'
+base: str = 'Base'
+def render(self) -> str: ...
+```
+
+### `clickhouse_single_column`
+
+A one-column ClickHouse table — the shape used by the type matrix.
+
+```python
+def clickhouse_single_column(column_type: str, *, column_meta: str | None=None) -> str: ...
+```
+
+## `tools/offline_integrity.py`
+
+### `state_files`
+
+```python
+def state_files(work_dir: Path) -> tuple[Path, ...]: ...
+```
+
+### `build_state_manifest`
+
+```python
+def build_state_manifest(work_dir: Path) -> dict[str, str]: ...
+```
+
+### `write_state_manifest`
+
+```python
+def write_state_manifest(work_dir: Path, destination: Path | None=None) -> Path: ...
+```
+
+### `verify_state_manifest`
+
+```python
+def verify_state_manifest(work_dir: Path, manifest: Path | None=None) -> None: ...
+```
+
+## `tools/performance_baseline.py`
+
+### `PerformanceBaseline`
+
+```python
+migration_count: int
+prepare_seconds: float
+migrate_seconds: float
+diff_seconds: float
+total_seconds: float
+def load(cls, path: Path, migration_count: int) -> PerformanceBaseline: ...
+def assert_within(self, result: ConvergenceBenchmarkResult, tolerance: float=0.2) -> None: ...
+```
+
+## `tools/report_generator.py`
+
+### `load_junit_report`
+
+Load pytest's portable JUnit XML through the standard library.
+
+```python
+def load_junit_report(path: Path) -> dict[str, Any]: ...
+```
+
+### `write_markdown_report`
+
+```python
+def write_markdown_report(report: dict[str, Any], destination: Path) -> None: ...
+```
+
+### `write_json_report`
+
+```python
+def write_json_report(report: dict[str, Any], destination: Path) -> None: ...
+```
+
+## `tools/round_trip_driver.py`
+
+### `RoundTripResult`
+
+```python
+shape_id: str
+work_dir: Path
+database: str | None = None
+make_returncode: int = 0
+migrate_returncode: int = 0
+generate_returncode: int = 0
+generate_output: str = ''
+generated_files: tuple[str, ...] = ()
+generated_sources: dict[str, str] = field(default_factory=dict)
+live_schema: str = ''
+rediff_output: str = ''
+remake_output: str = ''
+remake_returncode: int = 0
+remake_sql: str = ''
+def diff_operations(self) -> list[dict[str, Any]]: ...
+def diff_is_clean(self) -> bool: ...
+def regenerated_migration(self) -> bool: ...
+def bookkeeping_models(self) -> tuple[str, ...]: ...
+def setup_ok(self) -> bool: ...
+def converged(self) -> bool: ...
+def unimportable(self) -> dict[str, str]: ...
+def summary(self) -> str: ...
+```
+
+### `RoundTripDriver`
+
+Run one model shape through the full reverse-engineering loop.
+
+```python
+def __init__(self, root: Path, *, url_for: Any, backend: str, env: dict[str, str] | None=None, prepare_database: Any=None) -> None: ...
+def run(self, shape_id: str, model_source: str) -> RoundTripResult: ...
+```
+
+## `tools/schema_runner.py`
+
+### `SchemaRunner`
+
+Materialize a reference schema into a disposable dbwarden project.
+
+```python
+def __init__(self, schema: ReferenceSchema, player: MigrationPlayer, *, database_type: str | None=None) -> None: ...
+def prepare(self) -> Path: ...
+def configure(self) -> Path: ...
+def initialize(self) -> Path: ...
+def make_and_apply(self, message: str='reference schema') -> None: ...
+def capture_schema(self) -> SchemaSnapshot: ...
+def assert_expected_schema(self) -> SchemaSnapshot: ...
+def reverse_engineer(self, output_dir: str='generated', *, tables: str | None=None, exclude_tables: str | None=None, clickhouse_engines: bool=False, relationships: bool=False) -> Path: ...
+def round_trip(self, output_dir: str='generated', *, tables: str | None=None) -> list[dict[str, object]]: ...
+```
+
+## `tools/snapshot_manager.py`
+
+### `SQLSnapshot`
+
+```python
+relative_path: str
+content: str
+sha256: str
+```
+
+### `SnapshotDiff`
+
+```python
+expected: SQLSnapshot
+actual: SQLSnapshot
+def changed(self) -> bool: ...
+def unified_text(self) -> str: ...
+```
+
+### `SnapshotManager`
+
+```python
+def capture(self, migration_file: Path, *, root: Path | None=None) -> SQLSnapshot: ...
+def compare(self, current: SQLSnapshot, baseline: SQLSnapshot) -> SnapshotDiff: ...
+def approve(self, diff: SnapshotDiff, destination: Path) -> None: ...
+def assert_unchanged(self, diff: SnapshotDiff) -> None: ...
+def baseline_for(self, root: Path, *, version: str, backend: str, name: str) -> Path | None: ...
+def build_manifest(self, root: Path) -> dict[str, str]: ...
+def write_manifest(self, root: Path, destination: Path | None=None) -> Path: ...
+def verify_manifest(self, root: Path, manifest: Path | None=None) -> None: ...
+```
+
+## `tools/sql_probe.py`
+
+### `ConstraintNotEnforced`
+
+A statement the database was expected to refuse succeeded instead.
+
+```python
+```
+
+### `SqlProbe`
+
+Exercise a live database with ordinary SQL to test behaviour, not shape.
+
+```python
+def __init__(self, database_url: str) -> None: ...
+def close(self) -> None: ...
+def execute(self, *statements: str) -> None: ...
+def scalar(self, statement: str) -> Any: ...
+def rows(self, statement: str) -> list[tuple[Any, ...]]: ...
+def rejects(self, statement: str) -> bool: ...
+def assert_rejects(self, statement: str, *, because: str) -> None: ...
+```
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/suites/adoption/
@@ -1537,23 +2931,23 @@ DDL, and migrations running under concurrent load.
 
 ## Scenarios
 
-**PostgreSQL** — rename with a simultaneous type change, rename with a
+**PostgreSQL**; rename with a simultaneous type change, rename with a
 constraint change, drop and recreate with the same signature, ambiguous rename
 detection, partition changes, generated columns, concurrent index creation and
 its transactional contract, and enum changes.
 
-**ClickHouse, single node** — `ORDER BY` and `PARTITION BY` changes, codec and
+**ClickHouse, single node**; `ORDER BY` and `PARTITION BY` changes, codec and
 projection changes, materialized-view `SELECT` and target changes, engine
 recreation with existing data, engine recreation followed by rollback, and a
 partially failed recreate.
 
-**ClickHouse, replicated** — `MergeTree` to `ReplicatedMergeTree`,
+**ClickHouse, replicated**; `MergeTree` to `ReplicatedMergeTree`,
 `ReplicatedMergeTree` to `ReplicatedReplacingMergeTree`, replicated
 materialized views, `ON CLUSTER` propagation, and Keeper path changes. These
 need `ClickHouseClusterProvider`: two servers and one Keeper on a shared Docker
 network.
 
-**Lock and performance safety** — adding a column under concurrent workload on
+**Lock and performance safety**; adding a column under concurrent workload on
 PostgreSQL and ClickHouse, `CREATE INDEX` lock classification, and documented
 downtime for ClickHouse engine recreation.
 
@@ -1638,6 +3032,60 @@ uv run pytest -q suites/durability
 ```
 
 ========================================================================
+PAGE: https://harness.dbwarden.org/suites/generative/
+========================================================================
+
+# Generative Suite
+
+The generative suite answers "**which** of hundreds of nearly-identical declarations work?" and which of them dbwarden accepts, migrates, reports success for, and silently does nothing about.
+
+## Why it exists
+
+A scenario-based test writes one migration and asserts the resulting schema. That passes whether the change was applied or ignored, provided the assertion is written against the same model. The generative suite runs every case as a *pair* of model revisions and records whether a migration file was produced at all, so `no-migration` is a distinct, assertable outcome.
+
+## Test files
+
+| File | Question |
+|---|---|
+| `test_change_matrix.py` | Does changing one property of a table produce a migration? (40 properties) |
+| `test_rollback_inversion.py` | Does a migration's rollback invert *that* migration? |
+| `test_type_matrix.py` | Does every SQLAlchemy type map to a ClickHouse type, or get refused? |
+| `test_engine_matrix.py` | Does every engine builder produce DDL the server accepts, with its arguments intact? |
+| `test_field_and_index_matrix.py` | Are column modifiers, skip indexes and projections rendered faithfully and quoted? |
+| `test_injection.py` | Can model-supplied text close a DDL statement? |
+| `test_object_kinds.py` | Does every declarable object kind (dictionary, role, seed, data op, named collection, view) reach the database? |
+| `test_round_trip_clickhouse.py` | Do reverse-engineered models reproduce the same database? |
+| `test_discovery_silence.py` | Is an invalid model reported, or silently dropped? |
+
+## Infrastructure
+
+| Module | Role |
+|---|---|
+| `tools/model_source.py` | Declarative model builders. Changes one line per case so matrices cannot accidentally vary two things. |
+| `tools/case_runner.py` | Runs `GenerationCase` objects through init → make-migrations → migrate in parallel. Records all outcomes. |
+| `tools/round_trip_driver.py` | Full declare → migrate → generate-models → adopt → diff cycle. |
+| `tools/generation_probe.py` | Instruments extraction to recover silently discarded exceptions. |
+
+## Running
+
+```bash
+# Reuse a server you already have
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 \
+DBWARDEN_HARNESS_CLICKHOUSE_URL='clickhouse://default:@localhost:18123/default' \
+  uv run pytest suites/generative -q
+
+# Or let the suite start its own container
+DBWARDEN_HARNESS_RUN_INTEGRATION=1 uv run pytest suites/generative -q
+```
+
+`DBWARDEN_HARNESS_CLICKHOUSE_VERSION` selects the image (default `26.6`). One container serves the whole session; each case gets its own database.
+
+## See also
+
+- [Test Suites Overview](index.md)
+- [Coverage Matrix](../coverage-matrix.md)
+
+========================================================================
 PAGE: https://harness.dbwarden.org/suites/
 ========================================================================
 
@@ -1658,6 +3106,7 @@ Suites are grouped by the confidence question they answer.
 | Adoption | `suites/adoption` | Can an existing schema be handed to dbwarden? |
 | SQL contracts | `suites/sql_contract` | Is generated output deterministic and approved? |
 | Performance | `suites/performance` | Does scale remain within the measured budget? |
+| Generative | `suites/generative` | Which of hundreds of nearly-identical declarations work? |
 
 Run one category with:
 
@@ -1698,6 +3147,7 @@ missing artifact must be detected rather than quietly used.
 ## Files
 
 - `suites/offline/test_sqlite_offline.py`
+- `suites/offline/test_data_migrations.py` — declarative data bundles, transitions, merges, tamper detection, and rollback/reapply through the public CLI
 
 ## Scenarios
 
@@ -1754,6 +3204,14 @@ DBWARDEN_HARNESS_RUN_500_MIGRATION=1 uv run pytest suites/performance/test_conve
 The benchmark is opt in because it is intentionally expensive. Results should
 be compared on the same Python, filesystem, dbwarden version, and machine
 class. The repository baseline is a reference measurement, not a universal SLA.
+
+To assert against a performance baseline (fail if regression detected) instead
+of measuring only:
+
+```bash
+DBWARDEN_HARNESS_RUN_500_MIGRATION=1 DBWARDEN_HARNESS_ENFORCE_PERFORMANCE=1 \
+  uv run pytest suites/performance/test_convergence_500.py -s
+```
 
 ========================================================================
 PAGE: https://harness.dbwarden.org/suites/plugins/
@@ -1853,6 +3311,7 @@ destructive operations that must not proceed unattended.
 ## Files
 
 - `suites/safety/test_cli_failures.py`
+- `suites/safety/test_scoped_offline.py` — severity-scoped offline generation, exit-3 deferral, malformed plans, and Git merge reconciliation
 
 ## Scenarios
 
