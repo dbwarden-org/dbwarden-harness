@@ -6,10 +6,10 @@ from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
-from sqlalchemy import create_engine, text
 
 from mcp_server.bundle import assemble_proof_bundle
 from mcp_server.comparator import compare_schemas
+from mcp_server.inspector import query_track_a
 from mcp_server.models import (
     ComparisonResult,
     TrackResult,
@@ -22,7 +22,6 @@ from mcp_server.track_b import run_track_b_incremental, run_track_b_nuclear
 from mcp_server.workspace import WORKSPACES, Workspace
 
 mcp = FastMCP("dbwarden-harness")
-POOL.start()
 
 
 def _cleanup() -> None:
@@ -41,7 +40,7 @@ def _require_workspace(workspace_id: str) -> Workspace:
 def _write_model_file_internal(workspace: Workspace, relative_path: str, content: str) -> Path:
     if workspace.frozen:
         raise RuntimeError(f"Workspace {workspace.workspace_id!r} is frozen")
-    path = workspace.work_dir / relative_path
+    path = workspace.resolve_path(relative_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     if relative_path.replace("\\", "/").endswith("app/models.py"):
@@ -118,7 +117,7 @@ def apply_mutation(workspace_id: str, mutation: dict[str, Any]) -> str:
     if workspace.frozen:
         raise RuntimeError(f"Workspace {workspace.workspace_id!r} is frozen")
 
-    models_path = workspace.work_dir / "app" / "models.py"
+    models_path = workspace.resolve_path("app/models.py")
     source = models_path.read_text(encoding="utf-8") if models_path.exists() else ""
     new_source = apply_model_mutation(source, mutation)
     _write_model_file_internal(workspace, "app/models.py", new_source)
@@ -141,6 +140,8 @@ def run_two_track_test(
 ) -> str:
     """Run dbwarden (Track A) and a SQLAlchemy Core DDL reference (Track B), then compare schemas."""
     workspace = _require_workspace(workspace_id)
+    if reference_mode not in {"nuclear", "incremental"}:
+        raise ValueError("reference_mode must be nuclear or incremental")
     if workspace.frozen:
         raise RuntimeError(f"Workspace {workspace.workspace_id!r} is frozen")
 
@@ -216,14 +217,18 @@ def _two_track_result_to_dict(result: TwoTrackResult) -> dict[str, Any]:
             "success": result.track_a.success,
             "stage": result.track_a.stage,
             "error": result.track_a.error,
-            "schema_dump_path": str(result.track_a.schema_dump_path) if result.track_a.schema_dump_path else None,
+            "schema_dump_path": str(result.track_a.schema_dump_path)
+            if result.track_a.schema_dump_path
+            else None,
             "plan": result.track_a.plan,
         },
         "track_b": {
             "success": result.track_b.success,
             "stage": result.track_b.stage,
             "error": result.track_b.error,
-            "schema_dump_path": str(result.track_b.schema_dump_path) if result.track_b.schema_dump_path else None,
+            "schema_dump_path": str(result.track_b.schema_dump_path)
+            if result.track_b.schema_dump_path
+            else None,
         },
         "comparator": {
             "identical": result.comparator.identical,
@@ -245,11 +250,13 @@ def _two_track_result_to_dict(result: TwoTrackResult) -> dict[str, Any]:
 def read_file(workspace_id: str, relative_path: str) -> str:
     """Read a file from a workspace (read-only; works on frozen workspaces)."""
     workspace = _require_workspace(workspace_id)
-    path = workspace.work_dir / relative_path
+    path = workspace.resolve_path(relative_path)
     if not path.exists():
         raise FileNotFoundError(f"{relative_path!r} not found in workspace {workspace_id!r}")
     content = path.read_text(encoding="utf-8")
-    return json.dumps({"workspace_id": workspace_id, "relative_path": relative_path, "content": content})
+    return json.dumps(
+        {"workspace_id": workspace_id, "relative_path": relative_path, "content": content}
+    )
 
 
 @mcp.tool()
@@ -280,22 +287,15 @@ def inspect_schema(workspace_id: str) -> str:
 def query_database(workspace_id: str, sql: str, read_only: bool = True) -> str:
     """Run a SQL query against Track A's database. Defaults to read-only."""
     workspace = _require_workspace(workspace_id)
-    if workspace.frozen and not read_only:
-        raise RuntimeError("Cannot write to a frozen workspace")
-
-    engine = create_engine(workspace.track_a_url)
-    try:
-        with engine.connect() as connection:
-            if read_only:
-                result = connection.execute(text(sql))
-            else:
-                with connection.begin():
-                    result = connection.execute(text(sql))
-            rows = [dict(row._mapping) for row in result.mappings()]
-            return json.dumps({"workspace_id": workspace_id, "read_only": read_only, "rows": rows})
-    finally:
-        engine.dispose()
+    rows = query_track_a(workspace, sql, read_only=read_only)
+    return json.dumps(
+        {"workspace_id": workspace_id, "read_only": read_only, "rows": rows}, default=str
+    )
 
 
 def run_server() -> None:
-    mcp.run()
+    POOL.start()
+    try:
+        mcp.run()
+    finally:
+        _cleanup()

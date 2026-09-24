@@ -18,7 +18,9 @@ class ContainerPool:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._queues: dict[str, deque[DatabaseProvider]] = {backend: deque() for backend in CONFIG.warm_pool_count}
+        self._queues: dict[str, deque[DatabaseProvider]] = {
+            backend: deque() for backend in CONFIG.warm_pool_count
+        }
         self._stopped = False
         self._refill_thread: threading.Thread | None = None
 
@@ -75,10 +77,9 @@ class ContainerPool:
 
         with self._lock:
             queue = self._queues.get(backend, deque())
-            if queue:
-                provider = queue.popleft()
-            else:
-                provider = None
+            provider = next((item for item in queue if item.version() == version), None)
+            if provider is not None:
+                queue.remove(provider)
 
         if provider is None:
             provider = provider_for(backend, version)
@@ -86,14 +87,13 @@ class ContainerPool:
 
         try:
             provider.reset()
+            container = getattr(provider, "_container", None)
+            if container is not None:
+                container_id = container.get_wrapped_container().id
+                workspace_network.connect(container_id)
         except Exception:
             self._safe_stop(provider)
             raise
-
-        container = getattr(provider, "_container", None)
-        if container is not None:
-            container_id = container.get_wrapped_container().id
-            workspace_network.connect(container_id)
 
         return provider
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 
@@ -41,11 +42,14 @@ def classify_divergence(plan: dict[str, Any] | None, diff_summary: dict[str, Any
         "uuid",
     }
 
-    all_standard_ops = all(op.get("kind") in standard_ops for op in ops)
+    all_standard_ops = all(op.get("type", op.get("kind")) in standard_ops for op in ops)
     all_standard_types = all(
-        any(
-            t in standard_types
-            for t in op.get("column_types", [])
+        all(
+            re.split(r"[\s(]", str(t).lower())[0] in standard_types
+            for t in op.get(
+                "column_types",
+                _nested_types({key: value for key, value in op.items() if key != "type"}),
+            )
         )
         for op in ops
     )
@@ -53,3 +57,13 @@ def classify_divergence(plan: dict[str, Any] | None, diff_summary: dict[str, Any
     if all_standard_ops and all_standard_types:
         return "95"
     return "5"
+
+
+def _nested_types(value: Any) -> list[str]:
+    if isinstance(value, dict):
+        return [str(value["type"])] if "type" in value else [
+            item for child in value.values() for item in _nested_types(child)
+        ]
+    if isinstance(value, list):
+        return [item for child in value for item in _nested_types(child)]
+    return []

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import os
 import shutil
+import sqlite3
 import subprocess
 import urllib.parse
+from contextlib import closing
 from pathlib import Path
 
 
@@ -38,16 +41,16 @@ def _dump_postgresql(database_url: str) -> str:
         "--no-privileges",
         "--no-comments",
     ]
-    env = {}
+    env = os.environ.copy()
     if parsed.hostname:
         args.extend(["-h", parsed.hostname])
     if parsed.port:
         args.extend(["-p", str(parsed.port)])
     if parsed.username:
-        args.extend(["-U", parsed.username])
+        args.extend(["-U", urllib.parse.unquote(parsed.username)])
     if parsed.password:
-        env["PGPASSWORD"] = parsed.password
-    args.append(parsed.path.lstrip("/") or "harness")
+        env["PGPASSWORD"] = urllib.parse.unquote(parsed.password)
+    args.append(urllib.parse.unquote(parsed.path.lstrip("/")) or "harness")
 
     result = subprocess.run(
         args,
@@ -70,20 +73,22 @@ def _dump_mysql(database_url: str) -> str:
     url = _normalize_for_cli(database_url, default_scheme="mysql")
     parsed = urllib.parse.urlparse(url)
     args = [mysqldump, "--no-data", "--skip-comments"]
+    env = os.environ.copy()
     if parsed.hostname:
         args.extend(["-h", parsed.hostname])
     if parsed.port:
         args.extend(["-P", str(parsed.port)])
     if parsed.username:
-        args.extend(["-u", parsed.username])
+        args.extend(["-u", urllib.parse.unquote(parsed.username)])
     if parsed.password:
-        args.extend([f"-p{parsed.password}"])
-    args.append(parsed.path.lstrip("/") or "harness")
+        env["MYSQL_PWD"] = urllib.parse.unquote(parsed.password)
+    args.append(urllib.parse.unquote(parsed.path.lstrip("/")) or "harness")
 
     result = subprocess.run(
         args,
         capture_output=True,
         text=True,
+        env=env,
         timeout=120,
         check=False,
     )
@@ -93,23 +98,16 @@ def _dump_mysql(database_url: str) -> str:
 
 
 def _dump_sqlite(database_url: str) -> str:
-    parsed = urllib.parse.urlparse(database_url)
-    path = Path(parsed.path)
-    sqlite3 = shutil.which("sqlite3")
-    if sqlite3 is None:
-        raise SchemaDumpError("sqlite3 CLI not found on PATH")
+    from sqlalchemy.engine import make_url
+
+    path = Path(make_url(database_url).database or "")
     if not path.exists():
         return ""
-    result = subprocess.run(
-        [sqlite3, str(path), ".schema"],
-        capture_output=True,
-        text=True,
-        timeout=60,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise SchemaDumpError(f"sqlite3 .schema failed: {result.stderr}")
-    return result.stdout
+    with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)) as connection:
+        rows = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type, name"
+        )
+        return "\n".join(row[0].rstrip(";") + ";" for row in rows)
 
 
 def _dump_clickhouse(database_url: str) -> str:

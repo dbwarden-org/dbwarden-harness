@@ -24,7 +24,7 @@ def assemble_proof_bundle(
     comparison: ComparisonResult,
     reference_mode: str,
 ) -> TwoTrackResult:
-    """Freeze the workspace and produce an immutable evidence bundle."""
+    """Freeze workspace APIs and write a read-only evidence bundle."""
     workspace.freeze()
 
     timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S")
@@ -153,7 +153,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INPUT_DIR="$SCRIPT_DIR/../input"
 
-echo "Installing dbwarden==${os.environ.get('DBWARDEN_UNDER_TEST', 'latest')} (adjust as needed)"
+echo "Installing dbwarden==${os.environ.get("DBWARDEN_UNDER_TEST", "latest")} (adjust as needed)"
 
 cd "$INPUT_DIR"
 

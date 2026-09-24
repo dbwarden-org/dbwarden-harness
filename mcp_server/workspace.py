@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -34,6 +35,14 @@ class Workspace:
     def freeze(self) -> None:
         self.frozen = True
 
+    def resolve_path(self, relative_path: str) -> Path:
+        path = Path(relative_path)
+        root = self.work_dir.resolve()
+        resolved = (root / path).resolve()
+        if path.is_absolute() or path.drive or not resolved.is_relative_to(root):
+            raise ValueError("File path must stay inside the workspace")
+        return resolved
+
 
 class WorkspaceManager:
     """Create, track, and destroy isolated per-test workspaces."""
@@ -53,6 +62,12 @@ class WorkspaceManager:
         backend = backend.lower()
         if backend == "postgres":
             backend = "postgresql"
+        if backend not in CONFIG.db_versions:
+            raise ValueError(f"Unsupported backend: {backend}")
+        if name_prefix is not None and not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name_prefix):
+            raise ValueError(
+                "name_prefix must contain 1-64 letters, digits, underscores or hyphens"
+            )
 
         resolved_version = db_version or CONFIG.db_versions.get(backend)
         workspace_id = f"{name_prefix or 'ws'}-{uuid.uuid4().hex[:8]}"
