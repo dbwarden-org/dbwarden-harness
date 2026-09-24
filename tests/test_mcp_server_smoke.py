@@ -34,7 +34,7 @@ CREATE TABLE orders (id integer NOT NULL);
 """
     normalized = normalize_schema_dump(dump)
     lines = normalized.strip().splitlines()
-    assert lines == ["CREATE TABLE orders (id integer NOT NULL)", "CREATE TABLE users (id integer NOT NULL)"]
+    assert lines == ['CREATE TABLE "orders" ("id" INT NOT NULL);', 'CREATE TABLE "users" ("id" INT NOT NULL);']
 
 
 def test_compare_schemas_detects_divergence():
@@ -42,8 +42,8 @@ def test_compare_schemas_detects_divergence():
     b = "CREATE TABLE users (id bigint NOT NULL);"
     result = compare_schemas(a, b)
     assert not result.identical
-    assert "bigint" in result.diff
-    assert any(item["column"] == "id" for item in result.summary.type_mismatches)
+    assert "BIGINT" in result.diff
+    assert any(item["column"] == '"id"' for item in result.summary.type_mismatches)
 
 
 def test_compare_schemas_reports_identical():

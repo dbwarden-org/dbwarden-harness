@@ -15,16 +15,24 @@ from mcp_server.server import (
     write_model_file,
 )
 
-pytestmark = [pytest.mark.integration]
+
+@pytest.fixture(autouse=True)
+def isolated_workspaces(tmp_path, monkeypatch):
+    from dataclasses import replace
+
+    from mcp_server.workspace import CONFIG
+
+    monkeypatch.setattr("mcp_server.workspace.CONFIG", replace(CONFIG, workspace_root=tmp_path))
+    monkeypatch.setenv("DBWARDEN_HARNESS_BUG_REPORTS_DIR", str(tmp_path / "bug-reports"))
 
 
 BASE_MODELS = """\
-from sqlalchemy import Integer, String
+from sqlalchemy import Integer, String, MetaData
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
-    pass
+    metadata = MetaData(naming_convention={"uq": "uq_%(table_name)s_%(column_0_name)s"})
 
 
 class User(Base):
@@ -54,7 +62,7 @@ def test_sqlite_two_track_add_column() -> None:
             result_raw = run_two_track_test(workspace_id, reference_mode="nuclear")
             result = json.loads(result_raw)
 
-            assert result["passed"] is True, result["track_a"]["error"] + result["track_b"]["error"]
+            assert result["passed"] is True, json.dumps(result, indent=2)
             assert result["comparator"]["identical"] is True
             assert result["classification"] == "95"
         finally:
@@ -80,7 +88,7 @@ def test_sqlite_two_track_incremental() -> None:
             result_raw = run_two_track_test(workspace_id, reference_mode="incremental")
             result = json.loads(result_raw)
 
-            assert result["passed"] is True, result["track_a"]["error"] + result["track_b"]["error"]
+            assert result["passed"] is True, json.dumps(result, indent=2)
             assert result["comparator"]["identical"] is True
         finally:
             destroy_workspace(workspace_id)
