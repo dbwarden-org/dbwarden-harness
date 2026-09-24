@@ -89,12 +89,29 @@ def test_applied_migration_file_deletion_is_detected(tmp_path: Path):
 def test_staged_schema_upgrade_rollback_and_reapply_converges(tmp_path: Path):
     database = tmp_path / "staged.db"
     player = MigrationPlayer(f"sqlite:///{database}", tmp_path)
-    player.init_and_configure()
+    player.write_model_source("", filename="app/__init__.py")
+    player.write_model_source('''from typing import ClassVar
+from dbwarden.databases import IndexSpec, TableMeta
+from sqlalchemy import Integer, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+class Base(DeclarativeBase):
+    pass
+
+class Account(Base):
+    __tablename__ = "accounts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    class Meta(TableMeta):
+        indexes: ClassVar = [IndexSpec(name="ix_accounts_email", columns=["email"])]
+''', filename="app/models.py")
+    player.init_and_configure(model_paths=("app",))
     migration_dir = tmp_path / "migrations" / "primary"
     migration_dir.mkdir(parents=True, exist_ok=True)
     migrations = {
         1: (
-            "CREATE TABLE accounts (id INTEGER PRIMARY KEY);",
+            "CREATE TABLE accounts (id INTEGER NOT NULL PRIMARY KEY);",
             "DROP TABLE accounts;",
         ),
         2: (
