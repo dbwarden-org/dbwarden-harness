@@ -109,16 +109,19 @@ class RoundTripResult:
                 [
                     sys.executable,
                     "-c",
-                    "import importlib.util, sys\n"
-                    "spec = importlib.util.spec_from_file_location('generated', sys.argv[1])\n"
-                    "module = importlib.util.module_from_spec(spec)\n"
-                    "spec.loader.exec_module(module)\n",
+                    (
+                        "import importlib.util, sys\n"
+                        "spec = importlib.util.spec_from_file_location('generated', sys.argv[1])\n"
+                        "module = importlib.util.module_from_spec(spec)\n"
+                        "spec.loader.exec_module(module)\n"
+                    ),
                     str(path),
                 ],
                 capture_output=True,
                 text=True,
                 cwd=tempfile.gettempdir(),
                 timeout=120,
+                check=False,
             )
             if probe.returncode:
                 last = [line for line in probe.stderr.splitlines() if line.strip()]

@@ -11,6 +11,9 @@ dependencies = [
     "sqlglot>=30.19,<30.20",
 ]
 
+[tool.uv.sources]
+dbwarden = { path = "../dbwarden", editable = false }
+
 [dependency-groups]
 dev = [
     "pytest>=8.3",

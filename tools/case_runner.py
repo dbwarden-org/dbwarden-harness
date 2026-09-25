@@ -21,20 +21,20 @@ rejected" — a distinction that matters because the two have different causes.
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
 import urllib.parse
 import urllib.request
+from collections.abc import Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 from harness.cli import CommandResult, DbwardenCli
 
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
-CLICKHOUSE_ERROR = re.compile(r"(Code: \d+\. DB::Exception: .*?)(?: \(version|\n)", re.S)
+CLICKHOUSE_ERROR = re.compile(r"(Code: \d+\. DB::Exception: .*?)(?: \(version|\n)", re.DOTALL)
 SQLITE_ERROR = re.compile(r"(sqlite3\.\w+Error: .*?)\n")
 
 NO_CHANGES = "No new migrations to generate"

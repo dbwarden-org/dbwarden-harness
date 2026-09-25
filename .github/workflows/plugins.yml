@@ -11,12 +11,20 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: harness
+      - uses: actions/checkout@v4
+        with:
+          repository: dbwarden-org/dbwarden
+          path: dbwarden
       - uses: astral-sh/setup-uv@v6
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: uv sync --locked
+      - working-directory: harness
+        run: uv sync --locked
       - name: Install and exercise public plugins
+        working-directory: harness
         env:
           DBWARDEN_HARNESS_RUN_INTEGRATION: '1'
         run: uv run pytest suites/plugin_integration -m integration -q

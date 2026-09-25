@@ -11,12 +11,27 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: harness
+      # The lockfile resolves dbwarden from a sibling checkout, so keep one
+      # present for `uv sync --locked`. The next step replaces it with the
+      # published wheel, which is what this workflow certifies.
+      - uses: actions/checkout@v4
+        with:
+          repository: dbwarden-org/dbwarden
+          path: dbwarden
       - uses: astral-sh/setup-uv@v5
         with:
           version: latest
       - name: Install locked harness
+        working-directory: harness
         run: uv sync --locked
+      - name: Install the published wheel
+        working-directory: harness
+        run: uv pip install --reinstall "dbwarden[clickhouse,mysql,postgres]"
       - name: Verify installed distribution
+        working-directory: harness
         run: uv run pytest -q tests/test_distribution.py tests/test_distribution_smoke.py
       - name: Verify CLI contract
+        working-directory: harness
         run: uv run pytest -q suites/distribution
