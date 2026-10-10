@@ -44,7 +44,7 @@ class Report(Base):
 
 
 def _require_plugin(tmp_path: Path) -> None:
-    """Make `dbwarden-pgsql-rbac` available, or skip with the reason.
+    """Make `dbwarden-pgsql-rbac` available, failing on installation errors.
 
     `dbwarden plugin add` shells out to pip, which a uv-managed environment does
     not necessarily contain. The plugin being installed some other way is still
@@ -59,7 +59,7 @@ def _require_plugin(tmp_path: Path) -> None:
 
     result = PluginInstaller(tmp_path).add("dbwarden-pgsql-rbac")
     if result.returncode != 0 or find_spec("dbwarden_pgsql_rbac") is None:
-        pytest.skip(
+        pytest.fail(
             "dbwarden-pgsql-rbac is not installed and could not be installed "
             f"through the CLI:\n{result.plain_output}"
         )

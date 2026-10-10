@@ -23,8 +23,11 @@ jobs:
           python-version: '3.12'
       - working-directory: harness
         run: uv sync --locked
+      - name: Seed pip for the default public plugin installer
+        working-directory: harness
+        run: uv pip install --python .venv/bin/python pip==25.3
       - name: Install and exercise public plugins
         working-directory: harness
         env:
           DBWARDEN_HARNESS_RUN_INTEGRATION: '1'
-        run: uv run pytest suites/plugin_integration -m integration -q
+        run: uv run --no-sync pytest suites/plugin_integration -m integration -q

@@ -10,8 +10,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from harness.cli import DbwardenCli
 from harness.reference import MINIMAL_SQLITE_MODELS
 from tools.migration_player import MigrationPlayer

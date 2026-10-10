@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 from tools.migration_player import MigrationPlayer
@@ -231,15 +232,15 @@ def test_sqlite_data_bundle_applies_rolls_back_reapplies_and_tamper_fails(tmp_pa
     assert "hash mismatch" in failed.output.lower()
     sql.write_text(original, encoding="utf-8")
     assert player.migrate("--force").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT code, name FROM countries").fetchall() == [("UY", "Uruguay")]
     assert player.rollback().returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'countries'"
         ).fetchall() == []
     assert player.migrate("--reapply-data").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT code, name FROM countries").fetchall() == [("UY", "Uruguay")]
 
 
@@ -261,7 +262,7 @@ def test_sqlite_data_parameter_is_required_frozen_and_applied(tmp_path: Path):
     preview = player.cli.run("migrate", "--dry-run", "--data")
     assert "data" in preview.output.lower()
     assert player.migrate("--force").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT code, name, label FROM countries").fetchall() == [
             ("UY", "Uruguay", "Latin America")
         ]
@@ -283,7 +284,7 @@ def test_sqlite_scoped_managed_row_delete_keeps_unowned_rows(tmp_path: Path):
     assert player.export_models().returncode == 0
     assert player.make_migrations("initial countries", "--offline").returncode == 0
     assert player.migrate("--force").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute("INSERT INTO countries VALUES ('BR', 'Brazil')")
         connection.commit()
     player.write_model_source(
@@ -291,7 +292,7 @@ def test_sqlite_scoped_managed_row_delete_keeps_unowned_rows(tmp_path: Path):
     )
     assert player.make_migrations("remove Argentina").returncode == 0
     assert player.migrate("--force").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT code, name FROM countries ORDER BY code").fetchall() == [
             ("BR", "Brazil"),
             ("UY", "Uruguay"),
@@ -308,19 +309,19 @@ def test_sqlite_managed_archive_round_trips_through_cli(tmp_path: Path):
     assert player.export_models().returncode == 0
     assert player.make_migrations("initial archive rows", "--offline").returncode == 0
     assert player.migrate("--force").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute("UPDATE items SET note = 'application note' WHERE id = 'old'")
         connection.commit()
     player.write_model_source(_archived_rows([]), filename="app/models.py")
     assert player.make_migrations("archive old row").returncode == 0
     assert player.cli.run("data", "render", "--format", "json").returncode == 0
     assert player.migrate("--force").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT * FROM items").fetchall() == []
         assert connection.execute("SELECT id,name,note FROM items_archive").fetchall() == [("old", "Old", "application note")]
     assert player.cli.run("check", "--data").returncode == 0
     assert player.rollback().returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT id,name,note FROM items").fetchall() == [("old", "Old", "application note")]
     assert player.migrate("--force", "--reapply-data").returncode == 0
 
@@ -334,7 +335,7 @@ def test_sqlite_many_source_merge_batches_and_round_trips(tmp_path: Path):
     player.init_and_configure(model_paths=("app",), data_paths=["transitions"])
     assert player.make_migrations("legacy merge sources").returncode == 0
     assert player.migrate("--force").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         connection.executemany("INSERT INTO legacy_a VALUES (?, ?, ?, ?)", [
             (1, 10, 2, "first"), (2, 10, 3, "second"), (3, 20, 5, "twenty"),
         ])
@@ -358,7 +359,7 @@ def test_sqlite_many_source_merge_batches_and_round_trips(tmp_path: Path):
     assert player.cli.run("data", "docs", "--output", str(docs)).returncode == 0
     assert any((docs / "transitions").glob("*.md"))
     assert player.migrate("--force").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT id, total, name FROM accounts ORDER BY id").fetchall() == [
             (10, 12, "first"), (20, 5, "twenty"), (30, 11, "thirty"),
         ]
@@ -370,14 +371,14 @@ def test_sqlite_many_source_merge_batches_and_round_trips(tmp_path: Path):
         ).fetchone()[0] == 2
     player.assert_converged()
     assert player.rollback().returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'accounts'"
         ).fetchall() == []
         assert connection.execute("SELECT COUNT(*) FROM legacy_a").fetchone()[0] == 3
         assert connection.execute("SELECT COUNT(*) FROM legacy_b").fetchone()[0] == 2
     assert player.migrate("--force", "--reapply-data").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT id, total, name FROM accounts ORDER BY id").fetchall() == [
             (10, 12, "first"), (20, 5, "twenty"), (30, 11, "thirty"),
         ]
@@ -385,7 +386,7 @@ def test_sqlite_many_source_merge_batches_and_round_trips(tmp_path: Path):
 
 def test_sqlite_transition_preserves_source_and_round_trips(tmp_path: Path):
     player, database = _transition_project(tmp_path)
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute("INSERT INTO legacy VALUES (1, 'UY', 'Uruguay')")
         connection.commit()
     snapshot_id = _snapshot_id(tmp_path)
@@ -405,12 +406,12 @@ def test_sqlite_transition_preserves_source_and_round_trips(tmp_path: Path):
     assert failed.returncode != 0
     assert "untrusted data migration" in failed.output.lower()
     assert "malformed plan" in failed.output.lower()
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT id, code, name FROM legacy").fetchall() == [(1, "UY", "Uruguay")]
         assert connection.execute("SELECT code, name FROM countries").fetchall() == []
     plan_path.write_text(original_plan, encoding="utf-8")
     assert player.migrate("--force").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT code, name FROM countries").fetchall() == [("UY", "Uruguay")]
         assert connection.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'legacy'"
@@ -420,11 +421,11 @@ def test_sqlite_transition_preserves_source_and_round_trips(tmp_path: Path):
         ).fetchall()
         assert len(preserved) == 1
     assert player.rollback().returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT id, code, name FROM legacy").fetchall() == [(1, "UY", "Uruguay")]
         assert connection.execute("SELECT code, name FROM countries").fetchall() == []
     assert player.migrate("--force", "--reapply-data").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT code, name FROM countries").fetchall() == [("UY", "Uruguay")]
     player.assert_converged()
 
@@ -438,7 +439,7 @@ def test_sqlite_current_model_transition_keeps_source_and_round_trips(tmp_path: 
     player.init_and_configure(model_paths=("app",), data_paths=["transitions"])
     assert player.make_migrations("current source schema").returncode == 0
     assert player.migrate("--force").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute("INSERT INTO legacy VALUES (1, 'Uruguay')")
         connection.commit()
     player.write_model_source(CURRENT_SOURCE_AND_TARGET_MODELS, filename="app/models.py")
@@ -453,12 +454,12 @@ def test_sqlite_current_model_transition_keeps_source_and_round_trips(tmp_path: 
     )
     assert plan["data_spec"]["transitions"][0]["completion"]["policy"] == "keep"
     assert player.migrate("--force").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT id, name FROM legacy").fetchall() == [(1, "Uruguay")]
         assert connection.execute("SELECT id, name FROM countries").fetchall() == [(1, "Uruguay")]
     assert player.cli.run("check", "--data").returncode == 0
     assert player.rollback().returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT id, name FROM legacy").fetchall() == [(1, "Uruguay")]
         assert connection.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='countries'"
@@ -475,17 +476,17 @@ def test_sqlite_capture_transformation_round_trips_through_cli(tmp_path: Path):
     player.init_and_configure(model_paths=("app",))
     assert player.make_migrations("items schema").returncode == 0
     assert player.migrate("--force").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute("INSERT INTO items VALUES (1, 7, 3)")
         connection.commit()
     player.write_model_source(CAPTURE_MODEL, filename="app/models.py")
     assert player.make_migrations("capture value", "--offline").returncode == 0
     assert player.migrate("--force").returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT value FROM items").fetchall() == [(8,)]
     assert player.cli.run("check", "--data").returncode == 0
     assert player.rollback().returncode == 0
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT value FROM items").fetchall() == [(3,)]
     assert player.migrate("--force", "--reapply-data").returncode == 0
     assert player.cli.run("check", "--data").returncode == 0
@@ -493,7 +494,7 @@ def test_sqlite_capture_transformation_round_trips_through_cli(tmp_path: Path):
 
 def test_sqlite_transition_target_conflict_fails_without_writes(tmp_path: Path):
     player, database = _transition_project(tmp_path)
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute("INSERT INTO legacy VALUES (1, 'UY', 'Uruguay')")
         connection.execute("INSERT INTO countries VALUES ('UY', 'Different')")
         connection.commit()
@@ -505,27 +506,6 @@ def test_sqlite_transition_target_conflict_fails_without_writes(tmp_path: Path):
     failed = player.cli.run("migrate", "--force", check=False)
     assert failed.returncode != 0
     assert "conflict" in failed.output.lower()
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT id, code, name FROM legacy").fetchall() == [(1, "UY", "Uruguay")]
         assert connection.execute("SELECT code, name FROM countries").fetchall() == [("UY", "Different")]
-
-
-import pytest
-
-
-@pytest.fixture(autouse=True)
-def _close_leaked_sqlite_connections():
-    """The suite relies on sqlite context-manager commits, which never close."""
-    yield
-    import gc
-    import sqlite3
-    import warnings
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        for obj in gc.get_objects():
-            if isinstance(obj, sqlite3.Connection):
-                try:
-                    obj.close()
-                except Exception:
-                    pass

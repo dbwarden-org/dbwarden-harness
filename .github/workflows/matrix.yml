@@ -36,22 +36,28 @@ jobs:
       - name: Install locked environment
         working-directory: harness
         run: uv sync --locked
+      - name: Prepare artifact directory
+        working-directory: harness
+        run: mkdir -p artifacts
       - name: Run provider-backed suites
+        id: round_trip
         working-directory: harness
         env:
           DBWARDEN_HARNESS_RUN_INTEGRATION: "1"
-          DBWARDEN_HARNESS_ARTIFACT_DIR: harness/artifacts
+          DBWARDEN_HARNESS_ARTIFACT_DIR: artifacts
         run: uv run pytest -m integration suites/round_trip -k "${{ matrix.backend }}" -q
       - name: Run constraint semantics
-        if: matrix.backend != 'clickhouse'
+        id: semantics
+        if: matrix.backend != 'clickhouse' && always()
         working-directory: harness
         env:
           DBWARDEN_HARNESS_RUN_INTEGRATION: "1"
-          DBWARDEN_HARNESS_ARTIFACT_DIR: harness/artifacts
+          DBWARDEN_HARNESS_ARTIFACT_DIR: artifacts
         run: uv run pytest -m integration suites/semantics -k "${{ matrix.backend }}" -q
       - name: Upload failure artifacts
-        if: failure()
+        if: always() && (steps.round_trip.outcome == 'failure' || steps.semantics.outcome == 'failure')
         uses: actions/upload-artifact@v4
         with:
           name: harness-${{ matrix.backend }}
           path: harness/artifacts
+          if-no-files-found: warn

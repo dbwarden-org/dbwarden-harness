@@ -17,7 +17,26 @@ class MigrationPlayer:
         self.cli = DbwardenCli(work_dir)
 
     def init(self) -> CommandResult:
+        self._trust_installed_plugins()
         return self.cli.run("init", clean=True)
+
+    def _trust_installed_plugins(self) -> None:
+        """Record plugin consent in the disposable project.
+
+        Every CLI invocation loads plugins with interactive consent, and a
+        fresh project has none recorded: the prompt then aborts the command
+        because the harness provides no TTY. Trusting the installed
+        community plugins up front mirrors the consent a user would grant
+        once per project.
+        """
+        from importlib.metadata import distributions
+
+        for dist in distributions():
+            name = dist.metadata.get("Name")
+            if not name:
+                continue
+            if any(ep.group == "dbwarden.plugins" for ep in dist.entry_points):
+                self.cli.run("plugin", "trust", name, check=False)
 
     def configure(
         self,

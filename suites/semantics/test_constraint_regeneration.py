@@ -145,7 +145,7 @@ def test_dropping_one_constraint_does_not_churn_the_rest_on_postgres(tmp_path: P
             + f"\n\nfull migration:\n{upgrade}"
         )
 
-        player.migrate()
+        player.migrate("--force")
         with SqlProbe(player.database_url) as probe:
             probe.assert_rejects(
                 "INSERT INTO heartbeats (branch_id, seq_no) VALUES (8, -1)",

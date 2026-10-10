@@ -111,24 +111,3 @@ def test_git_merge_preserves_offline_state_and_sql_pairs(tmp_path):
     assert json.loads((tmp_path / ".dbwarden/model_state.json").read_text()) == state
     assert set(state["tables"]["items"]["columns"]) == {"id", "nickname", "age"}
     assert "obsolete" not in state["tables"]
-
-
-import pytest
-
-
-@pytest.fixture(autouse=True)
-def _close_leaked_sqlite_connections():
-    """The suite relies on sqlite context-manager commits, which never close."""
-    yield
-    import gc
-    import sqlite3
-    import warnings
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        for obj in gc.get_objects():
-            if isinstance(obj, sqlite3.Connection):
-                try:
-                    obj.close()
-                except Exception:
-                    pass
