@@ -405,7 +405,7 @@ def test_sqlite_transition_preserves_source_and_round_trips(tmp_path: Path):
     failed = player.cli.run("migrate", "--dry-run", "--data", check=False)
     assert failed.returncode != 0
     assert "untrusted data migration" in failed.output.lower()
-    assert "malformed plan" in failed.output.lower()
+    assert "checksum mismatch" in failed.plain_output.lower()
     with closing(sqlite3.connect(database)) as connection, connection:
         assert connection.execute("SELECT id, code, name FROM legacy").fetchall() == [(1, "UY", "Uruguay")]
         assert connection.execute("SELECT code, name FROM countries").fetchall() == []

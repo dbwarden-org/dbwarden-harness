@@ -21,30 +21,30 @@ from tools.migration_player import MigrationPlayer
 
 def test_merge_command_appears_in_help(tmp_path: Path):
     result = DbwardenCli(tmp_path).run("--help")
-    assert "merge" in result.stdout
-    assert "divergent" in result.stdout.lower() or "branch" in result.stdout.lower()
+    assert "merge" in result.plain_output
+    assert "divergent" in result.plain_output.lower() or "branch" in result.plain_output.lower()
 
 
 def test_rebase_command_appears_in_help(tmp_path: Path):
     result = DbwardenCli(tmp_path).run("--help")
-    assert "rebase" in result.stdout
-    assert "disposable" in result.stdout.lower() or "recover" in result.stdout.lower()
+    assert "rebase" in result.plain_output
+    assert "disposable" in result.plain_output.lower() or "recover" in result.plain_output.lower()
 
 
 def test_reconcile_command_appears_in_help(tmp_path: Path):
     result = DbwardenCli(tmp_path).run("--help")
-    assert "reconcile" in result.stdout
-    assert "persistent" in result.stdout.lower() or "dirty" in result.stdout.lower()
+    assert "reconcile" in result.plain_output
+    assert "persistent" in result.plain_output.lower() or "dirty" in result.plain_output.lower()
 
 
 def test_lock_status_command_appears_in_help(tmp_path: Path):
     result = DbwardenCli(tmp_path).run("--help")
-    assert "lock-status" in result.stdout
+    assert "lock-status" in result.plain_output
 
 
 def test_unlock_command_appears_in_help(tmp_path: Path):
     result = DbwardenCli(tmp_path).run("--help")
-    assert "unlock" in result.stdout
+    assert "unlock" in result.plain_output
 
 
 # ---------------------------------------------------------------------------
@@ -111,33 +111,33 @@ def test_rebase_handles_no_migrations_without_git(tmp_path: Path):
 def test_merge_help_lists_flags(tmp_path: Path):
     result = DbwardenCli(tmp_path).run("merge", "--help")
     assert result.returncode == 0
-    assert "--rename-column" in result.stdout
-    assert "--rename-table" in result.stdout
-    assert "--force" in result.stdout
-    assert "--commit" in result.stdout
-    assert "--json" in result.stdout
+    assert "--rename-column" in result.plain_output
+    assert "--rename-table" in result.plain_output
+    assert "--force" in result.plain_output
+    assert "--commit" in result.plain_output
+    assert "--json" in result.plain_output
 
 
 def test_rebase_help_lists_flags(tmp_path: Path):
     result = DbwardenCli(tmp_path).run("rebase", "--help")
     assert result.returncode == 0
-    assert "--yes" in result.stdout
-    assert "--force" in result.stdout
-    assert "--check" in result.stdout
+    assert "--yes" in result.plain_output
+    assert "--force" in result.plain_output
+    assert "--check" in result.plain_output
 
 
 def test_reconcile_help_lists_flags(tmp_path: Path):
     result = DbwardenCli(tmp_path).run("reconcile", "--help")
     assert result.returncode == 0
-    assert "--dry-run" in result.stdout
-    assert "--rename-column" in result.stdout
-    assert "environment" in result.stdout.lower()
+    assert "--dry-run" in result.plain_output
+    assert "--rename-column" in result.plain_output
+    assert "environment" in result.plain_output.lower()
 
 
 def test_unlock_help_lists_flags(tmp_path: Path):
     result = DbwardenCli(tmp_path).run("unlock", "--help")
     assert result.returncode == 0
-    assert "--force" in result.stdout
+    assert "--force" in result.plain_output
 
 
 # ---------------------------------------------------------------------------
@@ -157,7 +157,7 @@ def test_reconcile_requires_environment_argument(tmp_path: Path):
 
 def test_status_all_environments_flag_present(tmp_path: Path):
     result = DbwardenCli(tmp_path).run("status", "--help")
-    assert "--all-environments" in result.stdout
+    assert "--all-environments" in result.plain_output
 
 
 def test_status_all_environments_outside_project(tmp_path: Path):
